@@ -1,0 +1,10 @@
+make debug --dry-run --always-make --keep-going --print-directory
+make: Entering directory `/Users/mehdizadem/Documents/PhD/Software/ReluVal'
+gcc -I OpenBLAS/include/ -I json-c/include/json-c -DDEBUG -g -O0   -c -o matrix.o matrix.c
+ 
+gcc -I OpenBLAS/include/ -I json-c/include/json-c -DDEBUG -g -O0   -c -o nnet.o nnet.c
+gcc -I OpenBLAS/include/ -I json-c/include/json-c -DDEBUG -g -O0   -c -o network_test.o network_test.c
+gcc -I OpenBLAS/include/ -I json-c/include/json-c -DDEBUG -g -O0   -c -o split.o split.c
+gcc -o network_test matrix.o nnet.o network_test.o split.o -LOpenBLAS/lib -Ljson-c/lib -ljson-c -lopenblas -lpthread -lm -DDEBUG -g
+make: Leaving directory `/Users/mehdizadem/Documents/PhD/Software/ReluVal'
+ 

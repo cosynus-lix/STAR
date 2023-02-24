@@ -1,0 +1,45 @@
+{
+  "homebrew_version": "3.4.6-76-g97b0162",
+  "used_options": [
+
+  ],
+  "unused_options": [
+
+  ],
+  "built_as_bottle": true,
+  "poured_from_bottle": true,
+  "installed_as_dependency": false,
+  "installed_on_request": true,
+  "changed_files": [
+    "lib/pkgconfig/json-c.pc"
+  ],
+  "time": 1654614967,
+  "source_modified_time": 1649898763,
+  "compiler": "clang",
+  "aliases": [
+
+  ],
+  "runtime_dependencies": [
+
+  ],
+  "source": {
+    "spec": "stable",
+    "versions": {
+      "stable": "0.16",
+      "head": null,
+      "version_scheme": 0
+    },
+    "path": "/opt/homebrew/Library/Taps/homebrew/homebrew-core/Formula/json-c.rb",
+    "tap_git_head": "775ded1211564cb8f977ee67fa49f9afda3f0583",
+    "tap": "homebrew/core"
+  },
+  "arch": "arm64",
+  "built_on": {
+    "os": "Macintosh",
+    "os_version": "macOS 12",
+    "cpu_family": "arm_firestorm_icestorm",
+    "xcode": "13.3",
+    "clt": "13.3.0.0.1.1645755326",
+    "preferred_perl": "5.30"
+  }
+}

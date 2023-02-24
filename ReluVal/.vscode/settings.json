@@ -1,0 +1,27 @@
+{
+    "makefile.launchConfigurations": [
+        {
+            "cwd": "/Users/mehdizadem/Documents/PhD/Software/ReluVal",
+            "binaryPath": "/Users/mehdizadem/Documents/PhD/Software/ReluVal/network_test",
+            "binaryArgsold": [
+                "5",
+                "./nnet/ACASXU_run2a_1_1_batch_2000.nnet",
+                "4",
+                "input.json",
+                "1"
+            ],
+            "binaryArgs": [
+                "1",
+                "./test/testModel2.nnet",
+                "0",
+                "./test/input.json",
+                "1"
+            ]
+        },
+        {
+            "cwd": "/Users/mehdizadem/Documents/PhD/Software/ReluVal",
+            "binaryPath": "/Users/mehdizadem/Documents/PhD/Software/ReluVal/network_test",
+            "binaryArgs": []
+        }
+    ]
+}
