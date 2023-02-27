@@ -20,7 +20,7 @@ from environment import ndInterval
 from dqn_uvf import LowAgent_dqn, HighReplayBuffer
 from ddpg_uvf import LowAgent_ddpg
 from ddpg import HighAgent, LSTM_HighAgent
-from Reachability_Benchmark import reach_analysis
+from reachability import reach_analysis
 from convert import convert
 
 import csv
