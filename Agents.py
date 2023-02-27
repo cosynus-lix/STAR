@@ -580,9 +580,8 @@ class GARA:
         """
 
         stats = {"episode_lengths": np.zeros(num_episodes),
-                 "episode_rewards": np.zeros(num_episodes),
-                 "internal_rewards": np.zeros(num_episodes),
-                 "forward_errors": defaultdict(lambda: np.zeros(num_episodes))}
+                 "episode_rewards": np.zeros(num_episodes)}
+        forward_errors = defaultdict(lambda: [])
 
         reward_high = 0
         epsilon = args.eps
@@ -622,7 +621,6 @@ class GARA:
                         start_goal_index = self.identify_partition(s_t)
                     else:
                         prev_target = target_goal_index
-                        self.rewards[start_goal_index, target_goal_index].append(rewards)
                         reached_state = state
                         reached_partition = self.identify_partition(reached_state)
                         if self.strategy == 'Q-learning':
@@ -725,7 +723,6 @@ class GARA:
 
                 # Update statistics
                 stats["episode_rewards"][i_episode] += reward_ext
-                stats["internal_rewards"][i_episode] += int(reward_int > 0)
                 stats["episode_lengths"][i_episode] = t
 
                 # Policy update
@@ -784,8 +781,8 @@ class GARA:
                     goals = np.concatenate([self.G[goal_pair[1]].inf, self.G[goal_pair[1]].sup]) * np.ones(
                         shape=(len(states), self.goal_dim))
                     loss = mean_squared_error(reached_states, self.forward_predict(states, goals))
-                    stats["forward_errors"][i_episode] = loss
-                    if i_episode > 1 and loss[-1] - loss[-2] < 0.01:
+                    forward_errors[goal_pair].append(loss)
+                    if i_episode > 1 and forward_errors[goal_pair][-1] - forward_errors[goal_pair][-2] < 0.01:
                         print("splitting from : ", goal_pair[0], goal_pair[1])
                         self.split(start_partition=goal_pair[0], target_partition=goal_pair[1])
         return stats
@@ -907,7 +904,7 @@ class Feudal_HRL:
                 if t % k == 0:
                     if t == 0:
                         s_t = state
-                        prev_goal = goal
+                        prev_goal = state
                     else:
                         reached_state = state
                         if self.HighAgent.buffer.size() >= 3000:
