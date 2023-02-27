@@ -1,0 +1,7 @@
+numpy
+scipy
+pyinterval
+gym[mujoco]
+mujoco_py
+networkx
+opencv-python
