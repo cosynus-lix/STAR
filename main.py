@@ -23,7 +23,7 @@ matplotlib.rc('font', **font)
 stats = dict()
 
 # U-shaped Maze
-walls = [[[1, 1, 0, 2]]]
+walls = [[1, 1, 0, 2]]
 start = (0, 0)
 exit = (0, 3)
 env = ObstacleMaze(n=3, start=start, exit=exit, walls=walls)
@@ -48,8 +48,8 @@ stats['HDQN'] = agent_HDQN.train(num_episodes=400, max_steps=300, min_steps=1000
 agent_LSTM = Feudal_HRL(env, representation=1)
 stats['LSTM'] = agent_LSTM.train(num_episodes=400, max_steps=300, min_steps=1000, k=5)
 
-with open('U-shaped.json', 'w') as f:
-    json.dump(stats, f)
+# with open('U-shaped.json', 'w') as f:
+#     json.dump(stats, f)
 
 # 4 Rooms shaped Maze
 
@@ -81,8 +81,8 @@ stats['HDQN'] = agent_HDQN.train(num_episodes=400, max_steps=300, min_steps=1000
 agent_LSTM = Feudal_HRL(env, representation=1)
 stats['LSTM'] = agent_LSTM.train(num_episodes=400, max_steps=300, min_steps=1000, k=5)
 
-with open('4Rooms.json', 'w') as f:
-    json.dump(stats, f)
+# with open('4Rooms.json', 'w') as f:
+#     json.dump(stats, f)
 
 # Labyrinth Maze
 walls = [[1, 5, 0.5, 0.5], [1, 1, 0.5, 4], [3, 3, 2.5, 6.1], [5, 5, 0.5, 4]]
@@ -114,5 +114,5 @@ stats['HDQN'] = agent_HDQN.train(num_episodes=400, max_steps=300, min_steps=1000
 agent_LSTM = Feudal_HRL(env, representation=1)
 stats['LSTM'] = agent_LSTM.train(num_episodes=400, max_steps=300, min_steps=1000, k=5)
 
-with open('Labyrinth.json', 'w') as f:
-    json.dump(stats, f)
+# with open('Labyrinth.json', 'w') as f:
+#     json.dump(stats, f)

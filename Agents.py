@@ -116,6 +116,8 @@ class HRL_Handcrafted:
                  "episode_rewards": np.zeros(num_episodes),
                  "visits": 1}
 
+        epsilon = args.eps
+        epsilon_high = args.eps_high
         reward_high = 0
 
         for i_episode in range(num_episodes):
@@ -139,8 +141,8 @@ class HRL_Handcrafted:
                 # Each k steps, the high-level agent selects a goal
                 if t % k == 0 or updateHigh:
                     # High-level epsilon annealing
-                    epsilon_high -= args.eps_high_decline
-                    epsilon_high = max(epsilon_high, args.epsilon_high_min)
+                    epsilon_high -= args.eps_high_decay
+                    epsilon_high = max(epsilon_high, args.eps_high_min)
 
                     if t == 0:
                         s_t = state
@@ -178,7 +180,7 @@ class HRL_Handcrafted:
 
                 # Epsilon decay
                 epsilon *= args.eps_decay
-                epsilon = max(epsilon, args.epsilon_min)
+                epsilon = max(epsilon, args.eps_min)
                 # Select action
                 action = self.LowAgent.model.get_action(state, goal, epsilon)
                 # Take a step
@@ -583,7 +585,8 @@ class GARA:
                  "forward_errors": defaultdict(lambda: np.zeros(num_episodes))}
 
         reward_high = 0
-        epsilon = args.epsilon
+        epsilon = args.eps
+        epsilon_high = args.eps_high
         # Random initial split of observable space into two disjoint goal sets
 
         for i_episode in range(num_episodes):
@@ -610,16 +613,16 @@ class GARA:
                 # Each k steps, the high-level agent selects a goal
                 if t % k == 0:
                     # High-level epsilon annealing
-                    epsilon_high -= args.eps_high_decline
-                    epsilon_high = max(epsilon_high, args.epsilon_high_min)
+                    epsilon_high -= args.eps_high_decay
+                    epsilon_high = max(epsilon_high, args.eps_high_min)
 
                     if t == 0:
                         s_t = state
                         # Determine start goal index
-                        start_index = self.identify_partition(s_t)
+                        start_goal_index = self.identify_partition(s_t)
                     else:
                         prev_target = target_goal_index
-                        self.rewards[start_index, target_goal_index].append(rewards)
+                        self.rewards[start_goal_index, target_goal_index].append(rewards)
                         reached_state = state
                         reached_partition = self.identify_partition(reached_state)
                         if self.strategy == 'Q-learning':
@@ -662,8 +665,7 @@ class GARA:
 
                 # Epsilon decay
                 epsilon *= args.eps_decay
-                # epsilon -= eps_decline
-                epsilon = max(epsilon, args.epsilon_min)
+                epsilon = max(epsilon, args.eps_min)
                 # Select action
                 action = self.LowAgent.model.get_action(state, goal, epsilon)
                 # Take a step
@@ -869,11 +871,11 @@ class Feudal_HRL:
         if self.representation == 0:
             # No representation
             self.HighAgent = HighAgent(env)
-            self.LowAgent = LowAgent_dqn(env, self.representation)
+            self.LowAgent = LowAgent_dqn(env, abstraction=False)
         elif self.representation == 1:
             # LSTM on raw data
             self.HighAgent = LSTM_HighAgent(env)
-            self.LowAgent = LowAgent_dqn(env, self.representation)
+            self.LowAgent = LowAgent_dqn(env, abstraction=False)
 
     def train(self, num_episodes, max_steps, min_steps, k):
         """
@@ -884,7 +886,7 @@ class Feudal_HRL:
         stats = {"episode_lengths": np.zeros(num_episodes),
                  "episode_rewards": np.zeros(num_episodes),
                  "visits": 1}
-        epsilon_high = args.epsilon_high
+        epsilon = args.eps
         reward_high = 0
         total_steps = 0
 
@@ -899,17 +901,13 @@ class Feudal_HRL:
 
             # Reset the environment and pick the first action
             state = self.env.reset()
-            bg_noise = np.zeros(self.HighAgent.action_dim)
 
             for t in itertools.count():
                 # Each k steps, the high-level agent selects a goal
                 if t % k == 0:
-                    # High-level epsilon annealing
-                    if epsilon_high > args.epsilon_high_min:
-                        epsilon_high -= args.eps_high_decline
                     if t == 0:
                         s_t = state
-                        prev_goal = state
+                        prev_goal = goal
                     else:
                         reached_state = state
                         if self.HighAgent.buffer.size() >= 3000:
@@ -935,7 +933,7 @@ class Feudal_HRL:
 
                 # Epsilon decay
                 epsilon *= args.eps_decay
-                epsilon = max(epsilon, args.epsilon_min)
+                epsilon = max(epsilon, args.eps_min)
                 # Select action
                 action = self.LowAgent.model.get_action(state, goal, epsilon)
                 # Take a step

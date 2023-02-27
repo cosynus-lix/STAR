@@ -131,10 +131,13 @@ class Qnet_uvf:
 
 
 class LowAgent_dqn:
-    def __init__(self, env):
+    def __init__(self, env, abstraction=True):
         self.env = env
         self.state_dim = self.env.observation_space.shape[0]
-        self.goal_dim = 8
+        if abstraction:
+            self.goal_dim = 2*self.state_dim
+        else:
+            self.goal_dim = self.state_dim
         self.action_dim = self.env.action_space.n
 
         self.model = Qnet_uvf(self.state_dim, self.goal_dim, self.action_dim)
