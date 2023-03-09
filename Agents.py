@@ -3,14 +3,12 @@ import pickle
 import json
 import numpy as np
 import copy
-import gym
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 import tensorflow as tf
-from keras import Model
-from keras.layers import Input, Dense, LSTM
+from keras.layers import Input, Dense
 from keras.optimizers import Adam
-from keras.metrics import mean_squared_error
+from sklearn.metrics import mean_squared_error
 
 import itertools
 from collections import defaultdict
@@ -30,16 +28,16 @@ parser.add_argument('--gamma', type=float, default=0.95)
 parser.add_argument('--lr', type=float, default=0.1)
 parser.add_argument('--alpha', type=float, default=0.01)
 parser.add_argument('--batch_size', type=int, default=32)
-parser.add_argument('--high_batch_size', type=int, default=32)
+parser.add_argument('--high_batch_size', type=int, default=128)
 parser.add_argument('--eps', type=float, default=1.0)
 parser.add_argument('--eps_decay', type=float, default=0.99995)
 parser.add_argument('--eps_min', type=float, default=0.01)
 parser.add_argument('--eps_high', type=float, default=1.0)
 parser.add_argument('--eps_high_decay', type=float, default=0.005)
 parser.add_argument('--eps_high_min', type=float, default=0.01)
-parser.add_argument('--target_update', type=int, default=200)
+parser.add_argument('--target_update', type=int, default=20)
 parser.add_argument('--high_discount_factor', type=int, default=0.99)
-parser.add_argument('--reluval_path', type=str, default="/GARA/ReluVal")
+parser.add_argument('--reluval_path', type=str, default="./ReluVal")
 
 args = parser.parse_args()
 
@@ -113,8 +111,7 @@ class HRL_Handcrafted:
         """
 
         stats = {"episode_lengths": np.zeros(num_episodes),
-                 "episode_rewards": np.zeros(num_episodes),
-                 "visits": 1}
+                 "episode_rewards": np.zeros(num_episodes)}
 
         epsilon = args.eps
         epsilon_high = args.eps_high
@@ -146,7 +143,6 @@ class HRL_Handcrafted:
 
                     if t == 0:
                         s_t = state
-
                         # Determine start goal index
                         start_goal_index = self.identify_partition(s_t)
                     else:
@@ -237,7 +233,6 @@ class HRL_Handcrafted:
 
         return new_agent
 
-    # open the file in the write mode
     def write_partitions(self, path):
         with open(path, 'w', encoding='UTF8') as f:
             # create the csv writer
@@ -408,8 +403,10 @@ class GARA:
             json.dump(data, f)
 
         if self.reachability_algorithm == "Ai2":
+            input = ndInterval(len(input_lower), input_lower, input_upper)
+
             partitions = reach_analysis.reachability_analysis("./nnet/forward_" + str(start_partition) + "_" + str(
-                target_partition) + ".nnet", self.G[start_partition], [self.G[target_partition]], "Ai2")
+                target_partition) + ".nnet", input, [self.G[target_partition]], "Ai2")
 
             reach, no_reach = [], []
             for p in partitions['reach']:
@@ -518,7 +515,6 @@ class GARA:
             new_goal = np.concatenate([goal.inf, goal.sup])
             self.LowAgent.buffer.put(state, new_goal, action, 1, next_state, done)
 
-
     def approximate_partition(self, start_index, target_index):
         """
         Splits starting set in 3 partitions: R containing reaching states, E explored non-reaching and B unexplored states
@@ -571,12 +567,6 @@ class GARA:
             :param num_episodes: Number of episodes to run for.
             :param max_steps: maximum number of steps in an episode
             :param min_steps: minimum number of steps before analysing policy
-            :param k: high-level update frequency
-            :param discount_factor: Gamma discount factor.
-            :param alpha: TD learning rate.
-            :param epsilon: Chance to sample a random action. Float between 0 and 1.
-            :param epsilon_min: minimum value for epsilon
-            :param eps_decline: decline rate for epsilon)
         """
 
         stats = {"episode_lengths": np.zeros(num_episodes),
@@ -586,7 +576,6 @@ class GARA:
         reward_high = 0
         epsilon = args.eps
         epsilon_high = args.eps_high
-        # Random initial split of observable space into two disjoint goal sets
 
         for i_episode in range(num_episodes):
             # Keep track of explored goal transitions during episode
@@ -601,8 +590,6 @@ class GARA:
                 print("epsilon_low : ", epsilon)
                 print("epsilon_high : ", epsilon_high)
 
-            # High-level update monitor
-            T = 0
             # Reset the environment and pick the first action
             state = self.env.reset()
             reward_int = 0
@@ -625,7 +612,8 @@ class GARA:
                         reached_partition = self.identify_partition(reached_state)
                         if self.strategy == 'Q-learning':
                             self.highQ_update(start_goal_index, target_goal_index, reached_partition, reward_high, done)
-                        elif self.strategy == 'Planning' and (start_goal_index, reached_partition) not in self.graph.edges():
+                        elif self.strategy == 'Planning' and (
+                        start_goal_index, reached_partition) not in self.graph.edges():
                             self.graph.add_edge(start_goal_index, reached_partition, reward=1)
                         # Save high-level transition
                         self.highMemory.put(s_t, start_goal_index, reached_state, reward, target_goal_index,
@@ -747,7 +735,8 @@ class GARA:
                     reached_partition = self.identify_partition(reached_state)
                     self.highMemory.put(s_t, start_goal_index, reached_state, reward, target_goal_index, reward_high)
                     if reached_partition != target_goal_index:
-                        self.highMemory.put(s_t, start_goal_index, reached_state, reward, reached_partition, reward_high)
+                        self.highMemory.put(s_t, start_goal_index, reached_state, reward, reached_partition,
+                                            reward_high)
                     if self.strategy == 'Q-learning':
                         self.highQ_update(start_goal_index, target_goal_index, reached_partition, reward_high, done)
                     elif self.strategy == 'Planning':
@@ -782,7 +771,8 @@ class GARA:
                         shape=(len(states), self.goal_dim))
                     loss = mean_squared_error(reached_states, self.forward_predict(states, goals))
                     forward_errors[goal_pair].append(loss)
-                    if i_episode > 1 and forward_errors[goal_pair][-1] - forward_errors[goal_pair][-2] < 0.01:
+                    if len(forward_errors[goal_pair]) > 2 and (
+                            forward_errors[goal_pair][-1] - forward_errors[goal_pair][-2]) < 0.01:
                         print("splitting from : ", goal_pair[0], goal_pair[1])
                         self.split(start_partition=goal_pair[0], target_partition=goal_pair[1])
         return stats
@@ -881,8 +871,7 @@ class Feudal_HRL:
 
         """
         stats = {"episode_lengths": np.zeros(num_episodes),
-                 "episode_rewards": np.zeros(num_episodes),
-                 "visits": 1}
+                 "episode_rewards": np.zeros(num_episodes)}
         epsilon = args.eps
         reward_high = 0
         total_steps = 0
@@ -968,13 +957,6 @@ class Feudal_HRL:
             total_steps += 1
 
         return stats
-
-    def save(self, file):
-        with open(file + 'G.pkl', 'wb') as f:
-            pickle.dump(self.G, f)
-        with open(file + 'lowagt.pkl', 'wb') as f:
-            pickle.dump(self.LowAgent, f)
-        self.forward.save(file + 'forward.h5')
 
     def copy_agent(self, new_agent, low_level=0):
         if self.representation == 1:

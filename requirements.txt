@@ -5,3 +5,4 @@ gym[mujoco]
 mujoco_py
 networkx
 opencv-python
+scikit-learn

@@ -82,10 +82,13 @@ class ndInterval:
                 change = False
         return list
 
-    def split(self, dims, lows, ups, split_value=dict()):
+    def split(self, dims, lows=[], ups=[], split_value=dict()):
         """Splits an interval across a dimension"""
         if not dims:
             return [self]
+        if lows == [] or ups == []:
+            lows = self.inf
+            ups = self.sup
         if dims:
             d = dims[0]
             lows1 = copy.deepcopy(lows)

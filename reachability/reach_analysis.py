@@ -176,7 +176,7 @@ class ReachabilityAnalysis:
         return error_high + error_low
 
     def Reachability(self, unsafe_threshold, safe_threshold, input, output, depth=0, compute_error=False):
-        jl.include('reachability.jl')
+        jl.include('reachability/reachability.jl')
 
         input_low = input.inf
         input_high = input.sup
