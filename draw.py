@@ -48,6 +48,8 @@ def representation(G, env, challenge='Labyrinth'):
         path = './figs/image4.png'
     elif challenge == 'Labyrinth':
         path = './figs/Labyrinth.png'
+    elif challenge == 'N-shape':
+        path = './figs/image6.png'
     image = cv2.imread(path)
     x_list = []
     y_list = []

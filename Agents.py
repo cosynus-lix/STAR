@@ -28,12 +28,12 @@ parser.add_argument('--gamma', type=float, default=0.95)
 parser.add_argument('--lr', type=float, default=0.1)
 parser.add_argument('--alpha', type=float, default=0.01)
 parser.add_argument('--batch_size', type=int, default=32)
-parser.add_argument('--high_batch_size', type=int, default=128)
+parser.add_argument('--high_batch_size', type=int, default=64)
 parser.add_argument('--eps', type=float, default=1.0)
 parser.add_argument('--eps_decay', type=float, default=0.99995)
 parser.add_argument('--eps_min', type=float, default=0.01)
 parser.add_argument('--eps_high', type=float, default=1.0)
-parser.add_argument('--eps_high_decay', type=float, default=0.005)
+parser.add_argument('--eps_high_decay', type=float, default=0.0005)
 parser.add_argument('--eps_high_min', type=float, default=0.01)
 parser.add_argument('--target_update', type=int, default=20)
 parser.add_argument('--high_discount_factor', type=int, default=0.99)
@@ -128,7 +128,8 @@ class HRL_Handcrafted:
                 print("\rEpisode {}/{} \t".format(i_episode, num_episodes), end="")
                 r = np.mean(stats['episode_rewards'][i_episode - 10: i_episode])
                 print("reward : ", r)
-                print(epsilon)
+                print("epsilon_low : ", epsilon)
+                print("epsilon_high : ", epsilon_high)
 
             # Reset the environment and pick the first action
             state = self.env.reset()
@@ -259,7 +260,7 @@ class GARA:
     rewards the Low-level agent for learning to reach them.
     """
 
-    def __init__(self, env, G_init, high_level, reachability_algorithm, n=8, h_mem=10000):
+    def __init__(self, env, G_init, high_level, reachability_algorithm, n=8, h_mem=50000):
         """
         Construct an Feudal RL agent
 
@@ -505,6 +506,7 @@ class GARA:
         """
         for i in range(len(self.highMemory.buffer)):
             s_t, start_goal_index, reached_state, reward, target_goal_index, reward_high = self.highMemory.buffer[i]
+            self.high_steps[self.highMemory.buffer[i][1], self.highMemory.buffer[i][3]] -= 1
             self.highMemory.put(s_t, self.identify_partition(self.highMemory.buffer[i][0]), reached_state, reward,
                                 self.identify_partition(self.highMemory.buffer[i][2]), reward_high)
             self.high_steps[self.highMemory.buffer[i][1], self.highMemory.buffer[i][3]] += 1
@@ -774,7 +776,11 @@ class GARA:
                     if len(forward_errors[goal_pair]) > 2 and (
                             forward_errors[goal_pair][-1] - forward_errors[goal_pair][-2]) < 0.01:
                         print("splitting from : ", goal_pair[0], goal_pair[1])
+                        n = len(self.G)
                         self.split(start_partition=goal_pair[0], target_partition=goal_pair[1])
+                        if len(self.G) > n:
+                            epsilon_high += epsilon_high / 2
+                            epsilon_high = min(epsilon_high, args.eps_high)
         return stats
 
     def copy_agent(self, new_agent, low_level=0):
@@ -815,7 +821,16 @@ class GARA:
                 G.append(
                     ndInterval(4, inf=[float(line[i]) for i in range(4)], sup=[float(line[i]) for i in range(4, 8)]))
         f.close()
+
         self.G = G
+
+        if self.strategy == 'Q-learning':
+            self.highLvlPolicy = defaultdict(lambda: np.zeros(len(self.G)))
+        self.automaton = nx.DiGraph()
+        self.graph = nx.DiGraph()
+        for i in range(len(self.G)):
+            self.automaton.add_node(i)
+            self.graph.add_node(i)
 
 
 def make_epsilon_greedy_policy(Q, epsilon, nA):
@@ -959,16 +974,16 @@ class Feudal_HRL:
         return stats
 
     def copy_agent(self, new_agent, low_level=0):
-        if self.representation == 1:
-            actor_weights = self.HighAgent.actor.model.get_weights()
-            t_actor_weights = self.HighAgent.target_actor.model.get_weights()
-            critic_weights = self.HighAgent.critic.model.get_weights()
-            t_critic_weights = self.HighAgent.target_critic.model.get_weights()
 
-            new_agent.HighAgent.actor.model.set_weights(actor_weights)
-            new_agent.HighAgent.critic.model.set_weights(critic_weights)
-            new_agent.HighAgent.target_actor.model.set_weights(t_actor_weights)
-            new_agent.HighAgent.target_critic.model.set_weights(t_critic_weights)
+        actor_weights = self.HighAgent.actor.model.get_weights()
+        t_actor_weights = self.HighAgent.target_actor.model.get_weights()
+        critic_weights = self.HighAgent.critic.model.get_weights()
+        t_critic_weights = self.HighAgent.target_critic.model.get_weights()
+
+        new_agent.HighAgent.actor.model.set_weights(actor_weights)
+        new_agent.HighAgent.critic.model.set_weights(critic_weights)
+        new_agent.HighAgent.target_actor.model.set_weights(t_actor_weights)
+        new_agent.HighAgent.target_critic.model.set_weights(t_critic_weights)
 
         if low_level == 1:
             Q = self.LowAgent.model.model.get_weights()

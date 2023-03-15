@@ -138,6 +138,7 @@ class ReachabilityAnalysis:
                 if (new_lower > new_upper):
                     output_intersections.append(0)
                     safe_intersections.append(0)
+                    return 0, 0
                 elif output_range < 1e-5:
                     continue
                 else:

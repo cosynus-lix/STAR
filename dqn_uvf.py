@@ -79,7 +79,7 @@ class HighReplayBuffer:
 
 
 class ReplayBuffer_uvf:
-    def __init__(self, capacity=10000):
+    def __init__(self, capacity=100000):
         self.buffer = deque(maxlen=capacity)
 
     def put(self, state, goal, action, reward, next_state, done):

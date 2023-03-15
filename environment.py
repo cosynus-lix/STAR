@@ -75,11 +75,13 @@ class ndInterval:
                         list.remove(A)
                         list.remove(B)
                         list.append(C)
+                        n = len(list)
                         break
                 if A not in list:
                     continue
             if len(list) == n:
                 change = False
+
         return list
 
     def split(self, dims, lows=[], ups=[], split_value=dict()):
@@ -146,7 +148,7 @@ class ndInterval:
         """Takes a list of intervals and eliminates duplicate intersections"""
         for i in range(len(interval_list)):
             partition1 = interval_list[i]
-            for j in range(i+1,len(interval_list)):
+            for j in range(i + 1, len(interval_list)):
                 partition2 = interval_list[j]
                 intersection = partition1.intersection(partition2)
                 if intersection:
@@ -162,7 +164,6 @@ class ndInterval:
                         else:
                             new_inf += [partition2.inf[v]]
                     interval_list[j] = ndInterval(partition2.n, new_inf, new_sup)
-
 
         return interval_list
 
@@ -220,6 +221,9 @@ class ObstacleMaze:
         base = interval[0, 1]
         x_interval = interval()
         y_interval = interval()
+        l_x, u_x, l_y, u_y = 0, 0, 0, 0
+        x_collision = False
+        y_collision = False
         if v_x > 0:
             l_x = (wall[0] - x) / v_x
             u_x = (wall[1] - x) / v_x
@@ -243,7 +247,19 @@ class ObstacleMaze:
             if wall[2] < y < wall[3]: y_interval = base
 
         t = base & x_interval & y_interval
-        return t == interval(), t
+
+        if t != interval() and x_interval != interval():
+            if y_interval != interval():
+                x_collision = x_interval[0].inf >= y_interval[0].inf
+            else:
+                x_collision = True
+        if t != interval() and y_interval != interval():
+            if x_interval != interval():
+                y_collision = y_interval[0].inf >= x_interval[0].inf
+            else:
+                y_collision = True
+
+        return (t == interval() or (t == interval(0, 0))), t, x_collision, y_collision
 
     def possible(self, state, next_state):
         """
@@ -253,38 +269,64 @@ class ObstacleMaze:
         :return: boolean
         """
         allow = True
+        x_violation = False
+        y_violation = False
         col_x = -1
         col_y = -1
 
         # Account for grid boundaries
         if next_state[0] < 0:
+            x_violation = True
             allow = False
             col_x = 0
         if next_state[1] < 0:
+            y_violation = True
             allow = False
             col_y = 0
         if next_state[0] > self.n:
+            x_violation = True
             allow = False
             col_x = self.n
         if next_state[1] > self.n:
+            y_violation = True
             allow = False
             col_y = self.n
         if not allow:
             col_x = (col_x == -1) * next_state[0] + (col_x != -1) * col_x
             col_y = (col_y == -1) * next_state[1] + (col_y != -1) * col_y
-            return allow, col_x, col_y
+            # return allow, col_x, col_y
 
         # Check if collision happens with walls
         for wall in self.walls:
-            allow, t = self.violation(state, next_state, wall)
-            if not allow:
+            move, t, x_collision, y_collision = self.violation(state, next_state, wall)
+            if not move:
+                allow = False
                 v_x = next_state[2]
                 v_y = next_state[3]
                 t = t[0].inf
-                col_x = state[0] + v_x * t
-                col_y = state[1] + v_y * t
+                if x_collision:
+                    if x_violation:
+                        if next_state[0] > state[0]:
+                            col_x = min(col_x, state[0] + v_x * t)
+                        else:
+                            col_x = max(col_x, state[0] + v_x * t)
+                    else:
+                        col_x = state[0] + v_x * t
+                    x_violation = True
+                    if not y_violation:
+                        col_y = state[1] + v_y * t
 
-                return allow, col_x, col_y
+                if y_collision:
+                    if not x_violation:
+                        col_x = state[0] + v_x * t
+                    if y_violation:
+                        if next_state[1] > state[1]:
+                            col_y = min(col_y, state[1] + v_y * t)
+                        else:
+                            col_y = max(col_y, state[1] + v_y * t)
+                    else:
+                        col_y = state[1] + v_y * t
+                    y_violation = True
 
         return allow, col_x, col_y
 

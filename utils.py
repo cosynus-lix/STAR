@@ -11,27 +11,27 @@ import argparse
 
 parser = argparse.ArgumentParser()
 
+font = {'family': 'normal',
+        'size': 18}
 
-def read_stats():
-    exp_list = ['GARA', 'GARA_Planning', 'Handcrafted', 'no_repr', 'LSTM']
-    exps = {'GARA': [3, 4, 5], 'GARA_Planning': [1, 3, 4], 'Handcrafted': [2, 3, 4], 'no_repr': [0,1,2], 'LSTM': [0, 1, 2,2]}
-    S = []
-    for exp in exp_list:
-        stats_list = []
-        for i in exps[exp]:
-            with open('Labyrinth/EXP_' + exp + '/exp' + str(i) + '.pkl', 'rb') as f:
-                stats = pickle.load(f)
-                stats_list.append(stats)
-        #
-        stats = dict()
-        for k in stats_list[0].keys():
-            matrix = np.array([stats_list[j][k] for j in range(len(stats_list))])
-            stats[k] = np.mean(matrix, axis=0)
-            # stats[k]['std'] = np.std(matrix, axis=0)
+matplotlib.rc('font', **font)
 
-        S.append(stats)
+def read_stats(setup):
 
-    return S
+    stats_list = []
+
+    for i in range(8):
+        with open('./' + setup + '/exp' + str(i) + '.pkl', 'rb') as f:
+            stats = pickle.load(f)
+            stats_list.append(stats)
+
+    stats = dict()
+    for alg in stats_list[0].keys():
+        matrix = np.array([stats_list[j][alg]['episode_rewards'] for j in range(len(stats_list))])
+        stats[alg] = np.mean(matrix, axis=0)
+        # stats[k]['std'] = np.std(matrix, axis=0)
+
+    return stats
 
 
 font = {'family': 'normal',
@@ -40,23 +40,21 @@ font = {'family': 'normal',
 matplotlib.rc('font', **font)
 
 
-def plotting(exp, window=30, xsize=20, ysize=5, metric='r', mode='nearest'):
-    exps = {'GARA': [3, 4, 5], 'GARA_Planning': [1, 3, 4], 'Handcrafted': [2, 3, 4], 'no_repr': [0, 1, 2], 'LSTM': [0, 1, 2, 2, 2]}
-    exp_list = ['GARA', 'GARA_Planning', 'Handcrafted', 'no_repr', 'LSTM']
-    S = read_stats(exps)
+def plotting(setup, window=30, xsize=20, ysize=5, metric='r', mode='nearest'):
+    stats = read_stats(setup)
 
     plt.figure(figsize=(xsize, ysize))
 
-    plt.figure(figsize=(xsize, ysize))
+    plt.plot(uniform_filter1d(stats['Handcrafted'], size=window, mode=mode), 'b', label='Handcrafted')
+    plt.plot(uniform_filter1d(stats['GARA_Q-learning'], size=window, mode=mode), 'tab:orange', label='GARA')
+    # plt.plot(uniform_filter1d(stats['GARA_Planning'], size=window, mode=mode),
+    #          label='GARA-Planning')
+    plt.plot(uniform_filter1d(stats['GARA_Q-learning_transfer'], size=window, mode=mode), 'lime', label='GARA - Transfer')
+    plt.plot(uniform_filter1d(stats['HDQN'], size=window, mode=mode), 'y', label='Concrete representation')
+    plt.plot(uniform_filter1d(stats['LSTM'], size=window, mode=mode), 'r', label='LSTM')
+    plt.plot(uniform_filter1d(stats['HDQN_transfer'], size=window, mode=mode), 'tab:brown', label='Concrete representation - Transfer')
+    plt.plot(uniform_filter1d(stats['LSTM_transfer'], size=window, mode=mode), 'tab:pink', label='LSTM - Transfer')
 
-    plt.plot(uniform_filter1d(S[0]["episode_rewards"], size=window, mode=mode), 'tab:green', label='GARA')
-    plt.plot(uniform_filter1d(S[1]["episode_rewards"], size=window, mode=mode), 'tab:orange',
-             label='GARA-Planning')
-    plt.plot(uniform_filter1d(S[2]["episode_rewards"], size=window, mode=mode), 'b',
-             label='Handcrafted')
-    plt.plot(uniform_filter1d(S[3]["episode_rewards"], size=window, mode=mode), 'y',
-             label='Concrete representation')
-    plt.plot(uniform_filter1d(S[4]["episode_rewards"], size=window, mode=mode), 'r', label='LSTM')
 
     plt.xlabel("Episodes")
     plt.ylabel("Mean rewards")
