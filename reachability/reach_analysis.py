@@ -185,7 +185,7 @@ class ReachabilityAnalysis:
         output_high = output[0].sup
         R_low, R_high = jl.reachability(self.alg, input_low, input_high, output_low, output_high,
                                         self.network)
-        print(R_low, R_high)
+        # print(R_low, R_high)
         R = ndInterval(self.n_output, inf=R_low, sup=R_high)
         self.reach = R
 
@@ -193,12 +193,12 @@ class ReachabilityAnalysis:
             error = self.compute_error(input, R)
             self.errors.append(error)
 
-        print(self.coverage(output))
+        # print(self.coverage(output))
         c1, c2 = self.coverage(output)
 
-        print("input: ", input_low, input_high)
-        print("output: ", output_low, output_high)
-        print("criteria: c1 = ", c1, " c2 = ", c2)
+        # print("input: ", input_low, input_high)
+        # print("output: ", R_low, R_high)
+        # print("criteria: c1 = ", c1, " c2 = ", c2)
 
         if c1 >= safe_threshold:
             partitions = dict()
@@ -206,16 +206,16 @@ class ReachabilityAnalysis:
             partitions['reach_size'] = 1
             partitions['no_reach'] = []
             partitions['no_reach_size'] = 0
-            print("safe")
+            print(input_low, input_high, "safe")
         elif c2 <= unsafe_threshold:
             partitions = dict()
             partitions['reach'] = []
             partitions['reach_size'] = 0
             partitions['no_reach'] = [copy.deepcopy(input)]
             partitions['no_reach_size'] = 1
-            print("unsafe")
+            # print("unsafe")
         elif self.volume_ratio(input) > 0.05:
-            print("split")
+            # print("split")
             partitions = dict()
             depth += 1
             split_dim = [jl.compute_grad(input_low, input_high, self.network)]
@@ -236,20 +236,20 @@ class ReachabilityAnalysis:
             partitions['no_reach'] = partitions1['no_reach'] + partitions2['no_reach']
             partitions['no_reach_size'] = partitions1['no_reach_size'] + partitions2['no_reach_size']
         else:
-            if c1 >= 0.5:
-                partitions = dict()
-                partitions['reach'] = [copy.deepcopy(input)]
-                partitions['reach_size'] = 1
-                partitions['no_reach'] = []
-                partitions['no_reach_size'] = 0
-                print("safe")
-            else:
-                partitions = dict()
-                partitions['reach'] = []
-                partitions['reach_size'] = 0
-                partitions['no_reach'] = [copy.deepcopy(input)]
-                partitions['no_reach_size'] = 1
-                print("unsafe")
+            # if c1 >= 0.5:
+            #     partitions = dict()
+            #     partitions['reach'] = [copy.deepcopy(input)]
+            #     partitions['reach_size'] = 1
+            #     partitions['no_reach'] = []
+            #     partitions['no_reach_size'] = 0
+            #     # print("safe")
+            # else:
+            partitions = dict()
+            partitions['reach'] = []
+            partitions['reach_size'] = 0
+            partitions['no_reach'] = [copy.deepcopy(input)]
+            partitions['no_reach_size'] = 1
+            # print("unsafe")
 
         return partitions
 
@@ -267,5 +267,5 @@ def write_stats(stats):
 
 def reachability_analysis(network, input, output, alg):
     R = ReachabilityAnalysis(alg, input, output, network)
-    partitions = R.Reachability(0.01, 0.9, R.input, R.output, compute_error=True)
+    partitions = R.Reachability(0.001, 0.4, R.input, R.output, compute_error=True)
     return partitions

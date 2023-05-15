@@ -1,8 +1,8 @@
 numpy
 scipy
 pyinterval
-gym[mujoco]
+tensorflow
+gym==0.18.0
 mujoco_py
 networkx
-opencv-python
 scikit-learn
