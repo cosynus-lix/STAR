@@ -31,6 +31,7 @@ class ndInterval:
             self.interval = []
 
     def __contains__(self, item):
+        assert self.n == len(item)
         for i in range(self.n):
             if not item[i] in self.interval[i]:
                 return False
@@ -44,47 +45,55 @@ class ndInterval:
         return volume
 
     def adjacency(self, B):
-        """
-        Checks if two intervals have the same bounds for all dimensions except one and have a common bound in that dimension and returns the dimension where they are adjacent.
-        Returns -1 if they are not adjacent.
-        """
-        assert self.n == B.n
+        """Checks for adjacent intervals that can be merged"""
+        counter = self.n
         dim = -1
         for i in range(self.n):
-            if self.inf[i] != B.inf[i] or self.sup[i] != B.sup[i]:
-                if dim == -1:
-                    if self.inf[i] == B.sup[i] or self.sup[i] == B.inf[i]:
-                        dim = i
-                    else:
-                        return -1
-                else:
-                    return -1
-        return dim
-
+            if self.inf[i] == B.inf[i] and self.sup[i] == B.sup[i]:
+                counter -= 1
+            elif self.sup[i] == B.inf[i] or self.inf[i] == B.sup[i]:
+                dim = i
+        if counter == 1:
+            return dim
+        else:
+            return -1
 
     def merge(self, B, dim):
-        """Merges two interval vectors across an adjacency dimension if possible"""
-        inf = copy.deepcopy(self.inf)
-        sup = copy.deepcopy(self.sup)
-        inf[dim] = min(self.inf[dim], B.inf[dim])
-        sup[dim] = max(self.sup[dim], B.sup[dim])
-        return ndInterval(self.n, inf, sup)
-        
+        """Merges two interval vectors across an appropriate dimension"""
+        C = ndInterval(self.n, [], [])
+        for i in range(C.n):
+            if i != dim:
+                C.sup.append(self.sup[i])
+                C.inf.append(self.inf[i])
+            else:
+                C.sup.append(self.sup[i] * (self.sup[i] >= B.sup[i]) + B.sup[i] * (self.sup[i] < B.sup[i]))
+                C.inf.append(self.inf[i] * (self.inf[i] <= B.inf[i]) + B.inf[i] * (self.inf[i] > B.inf[i]))
+
+        C.interval = [interval[C.inf[i], C.sup[i]] for i in range(C.n)]
+        return C
 
     def search_merge(list):
-        """Searches for adjacent intervals in a list and merges them"""
-        for i in range(len(list)):
-            partition1 = list[i]
-            for j in range(i+1,len(list)):
-                partition2 = list[j]
-                dim = partition1.adjacency(partition2)
-                if dim != -1:
-                    list[i] = partition1.merge(partition2, dim)
-                    list.pop(j)
-                    ndInterval.search_merge(list)
-                    return
-                
+        """Searches for intervals that can be merged together and merges them"""
+        change = True
+        n = len(list)
+        while change and len(list) > 1:
+            for A in list:
+                for B in list:
+                    dim = A.adjacency(B)
+                    if dim > -1:
+                        C = A.merge(B, dim)
+                        change = True
+                        list.remove(A)
+                        list.remove(B)
+                        list.append(C)
+                        n = len(list)
+                        break
+                if A not in list:
+                    continue
+            if len(list) == n:
+                change = False
         
+        return list
 
     def split(self, dims, lows=[], ups=[], split_value=dict()):
         """Splits an interval across a dimension"""
@@ -137,8 +146,6 @@ class ndInterval:
         return ndInterval.remove_duplicates(complement)
 
     def intersection(self, interval):
-        """Computes the intersection of two intervals"""
-        
         intersection_inf = list(np.maximum(self.inf, interval.inf))
         intersection_sup = list(np.minimum(self.sup, interval.sup))
 
@@ -171,7 +178,6 @@ class ndInterval:
 
 
         return interval_list
-
 
 # Simple replay buffer
 class ReplayBuffer(object):
