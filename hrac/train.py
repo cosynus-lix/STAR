@@ -254,7 +254,6 @@ def evaluate_policy_hiro(env, env_name, grid, boss_policy, manager_policy, contr
         env.evaluate = False
         return avg_reward, avg_controller_rew, avg_step_count, avg_env_finish, grid
 
-
 def get_reward_function(dims, absolute_goal=False, binary_reward=False):
     if absolute_goal and binary_reward:
         def controller_reward(z, subgoal, next_z, scale):
