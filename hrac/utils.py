@@ -2,6 +2,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.utils.data as Data
+import seaborn as sns
+import matplotlib.pyplot as plt
 
 import numpy as np
 import copy
@@ -427,7 +429,7 @@ def train_forward_model(forward_model, partition_buffer, Gs=None, Gt=None, n_epo
     forward_model.fit(x, gt, y, n_epochs=n_epochs, verbose=verbose)
 
 def train_adj_net(a_net, states, adj_mat, optimizer, margin_pos, margin_neg,
-                  n_epochs=100, batch_size=64, device='cpu', verbose=False):
+                  n_epochs=100, batch_size=64, devipce='cpu', verbose=False):
     if verbose:
         print('Generating training data...')
     dataset = MetricDataset(states, adj_mat)
@@ -518,3 +520,21 @@ class PartitionDataset(Data.Dataset):
 
     def __getitem__(self, idx):
         return self.state[idx], self.target_partition[idx], self.reached_state[idx]
+    
+
+def manager_mapping(grid, g_low, g_high, file, resolution=100):
+    """ plots a heatmap of the manager's subgoals and save it to a file """
+    # n = len(subgoal_list)
+    # # build a grid for the heatmap
+    # grid = np.zeros((resolution, resolution))
+    # # fill the grid with the subgoals
+    # for i in range(n):
+    #     x = int((subgoal_list[i][0] - g_low) / (g_high - g_low) * resolution)
+    #     y = int((subgoal_list[i][1] - g_low) / (g_high - g_low) * resolution)
+    #     grid[x, y] += 1
+
+    # plot the heatmap
+    ax = sns.heatmap(grid, cbar=False)
+    ax.invert_yaxis()
+    plt.savefig(file)
+    plt.close()
