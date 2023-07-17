@@ -395,37 +395,6 @@ class OUNoise(object):
         return (self.X + action).clip(min_action, max_action)
 
 
-# def train_forward_model(forward_model, partition_buffer, optimizer, n_epochs=100, batch_size=64, device='cpu', verbose=False):
-#     if verbose:
-#         print('Generating training data...')
-#     dataset = PartitionDataset(partition_buffer, batch_size)
-#     if verbose:
-#         print('Totally {} training pairs.'.format(len(dataset)))
-#     dataloader = Data.DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=0, drop_last=False)
-#     n_batches = len(dataloader)
-
-#     loss_func = nn.MSELoss()
-
-#     for i in range(n_epochs):
-#         epoch_loss = []
-#         for j, data in enumerate(dataloader):
-#             state, target_partition, reached_state = data
-#             state = state.float().to(device)
-#             target_partition = target_partition.float().to(device)
-#             reached_state = reached_state.float().to(device)
-#             pred_state = forward_model(state, target_partition)
-#             loss = loss_func(pred_state, reached_state)
-#             optimizer.zero_grad()
-#             loss.backward()
-#             optimizer.step()
-#             if verbose and (j % 50 == 0 or j == n_batches - 1):
-#                 print('Training forward model: epoch {}/{}, batch {}/{}'.format(i+1, n_epochs, j+1, n_batches))
-
-#             epoch_loss.append(loss.item())
-
-#         if verbose:
-#             print('Mean loss: {:.4f}'.format(np.mean(epoch_loss)))
-
 def train_forward_model(forward_model, partition_buffer, Gs=None, Gt=None, n_epochs=100, batch_size=64, device='cpu', verbose=False):
     if Gs is not None and Gt is not None:
         x, gs, y, gt, rl, rh = partition_buffer.target_sample(Gs, Gt, batch_size)
@@ -530,16 +499,6 @@ class PartitionDataset(Data.Dataset):
 
 def manager_mapping(grid, g_low, g_high, file, resolution=100):
     """ plots a heatmap of the manager's subgoals and save it to a file """
-    # n = len(subgoal_list)
-    # # build a grid for the heatmap
-    # grid = np.zeros((resolution, resolution))
-    # # fill the grid with the subgoals
-    # for i in range(n):
-    #     x = int((subgoal_list[i][0] - g_low) / (g_high - g_low) * resolution)
-    #     y = int((subgoal_list[i][1] - g_low) / (g_high - g_low) * resolution)
-    #     grid[x, y] += 1
-
-    # plot the heatmap
     ax = sns.heatmap(grid, cbar=False)
     ax.invert_yaxis()
     plt.savefig(file)

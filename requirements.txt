@@ -6,3 +6,4 @@ gym==0.18.0
 mujoco_py
 networkx
 scikit-learn
+seaborn

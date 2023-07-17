@@ -110,9 +110,11 @@ def evaluate_policy_gara(env, env_name, grid, boss_policy, manager_policy, contr
                 if step_count % boss_propose_frequency == 0:
                     start_partition_idx = boss_policy.identify_partition(state)
                     start_partition = np.array(boss_policy.G[start_partition_idx].inf + boss_policy.G[start_partition_idx].sup)
-                    # target_partition_idx = boss_policy.select_partition(start_partition_idx, epsilon=0, goal=goal)
-                    # target_partition = np.array(boss_policy.G[target_partition_idx].inf + boss_policy.G[target_partition_idx].sup)
-                    target_partition_idx, target_partition_interval = handcrafted_planning(goal, goal_partition, start_partition_idx, boss_policy)
+                    target_partition_idx = boss_policy.select_partition(start_partition_idx, epsilon=0, goal=goal)
+                    if target_partition_idx == goal_partition:
+                        target_partition_interval = utils.ndInterval(2, inf=[goal[0]-1, goal[1]-1], sup=[goal[0]+1, goal[1]+1])
+                    else:
+                        target_partition_interval = boss_policy.G[target_partition_idx]
                     target_partition = np.array(target_partition_interval.inf + target_partition_interval.sup)
 
 
@@ -734,7 +736,7 @@ def run_gara(args):
               utils.ndInterval(goal_dim, inf=[-1,8], sup=[16,16]),
               utils.ndInterval(goal_dim, inf=[-4,-4], sup=[-1,20])
               ]
-   
+    
     resolution = 24
     grid = np.zeros((resolution, resolution))
 
@@ -773,6 +775,9 @@ def run_gara(args):
         partitions=True
     )
 
+    for i in range(len(G_init)-4):
+            boss_policy.automaton.add_edge(i,i+1)
+
     calculate_controller_reward = get_reward_function(
         controller_goal_dim, absolute_goal=args.absolute_goal, binary_reward=args.binary_int_reward)
 
@@ -790,11 +795,16 @@ def run_gara(args):
 
     # Initialize forward model
     fwd_model = ForwardModel(state_dim, 2*goal_dim, args.fwd_hidden_dim, args.lr_fwd)
-    if args.load_fwd_model:
-        print("Loading forward_model...")
-        fwd_model.load_state_dict(torch.load("./models/fwd_model.pth"))
-    fwd_model.to(device)
-    optimizer_fwd = optim.Adam(fwd_model.parameters(), lr=args.lr_fwd)
+    # if args.load_fwd_model:
+    #     print("Loading forward_model...")
+    #     fwd_model.load_state_dict(torch.load("./models/fwd_model.pth"))
+    # fwd_model.to(device)
+    # optimizer_fwd = optim.Adam(fwd_model.parameters(), lr=args.lr_fwd)
+
+    # Give planning to the boss
+    for i in range(len(G_init) - 3):
+        boss_policy.graph.add_edge(i, i+1)
+
 
     if args.load:
         try:
@@ -933,10 +943,11 @@ def run_gara(args):
             
             epsilon *= args.boss_eps_decay
             epsilon = max(epsilon, args.boss_eps_min)
-            # target_partition_idx = boss_policy.select_partition(start_partition_idx, epsilon, goal)
-            # target_partition_idx = handcrafted_planning(goal_partition, start_partition_idx)
-            # target_partition = np.array(boss_policy.G[target_partition_idx].inf + boss_policy.G[target_partition_idx].sup)
-            target_partition_idx, target_partition_interval = handcrafted_planning(goal, goal_partition, start_partition_idx, boss_policy)
+            target_partition_idx = boss_policy.select_partition(start_partition_idx, epsilon=0, goal=goal)
+            if target_partition_idx == goal_partition:
+                target_partition_interval = utils.ndInterval(2, inf=[goal[0]-1, goal[1]-1], sup=[goal[0]+1, goal[1]+1])
+            else:
+                target_partition_interval = boss_policy.G[target_partition_idx]
             target_partition = np.array(target_partition_interval.inf + target_partition_interval.sup)
             prev_target_partition_idx = target_partition_idx
             prev_target_partition = target_partition
@@ -974,7 +985,7 @@ def run_gara(args):
 
         reached_partition_idx = boss_policy.identify_partition(state)
         reached_partition = np.array(boss_policy.G[reached_partition_idx].inf + boss_policy.G[reached_partition_idx].sup)
-        boss_policy.policy_update(start_partition_idx, target_partition_idx, reached_partition_idx, boss_reward, done, args.boss_discount_factor, args.boss_alpha)
+        # boss_policy.policy_update(start_partition_idx, target_partition_idx, reached_partition_idx, boss_reward, done, args.boss_discount_factor, args.boss_alpha)
 
         if transition_list and total_timesteps > args.boss_propose_freq and total_timesteps % args.boss_propose_freq != 0:
             s = controller_buffer.storage[0][-args.boss_propose_freq - 1]
@@ -1022,12 +1033,13 @@ def run_gara(args):
             start_partition_idx = boss_policy.identify_partition(state)
             start_partition = np.array(boss_policy.G[start_partition_idx].inf + boss_policy.G[start_partition_idx].sup)
             
-            # target_partition_idx = handcrafted_planning(goal_partition, start_partition_idx)
-            target_partition_idx, target_partition_interval = handcrafted_planning(goal, goal_partition, start_partition_idx, boss_policy)
+            target_partition_idx = boss_policy.select_partition(start_partition_idx, epsilon, goal)
+            if target_partition_idx == goal_partition:
+                target_partition_interval = utils.ndInterval(2, inf=[goal[0]-1, goal[1]-1], sup=[goal[0]+1, goal[1]+1])
+            else:
+                target_partition_interval = boss_policy.G[target_partition_idx]
             target_partition = np.array(target_partition_interval.inf + target_partition_interval.sup)
 
-            # target_partition_idx = boss_policy.select_partition(start_partition_idx, epsilon, goal)
-            target_partition = np.array(boss_policy.G[target_partition_idx].inf + boss_policy.G[target_partition_idx].sup)
             timesteps_since_partition = 0
             if [start_partition_idx, target_partition_idx] not in transition_list:
                 transition_list.append([start_partition_idx, target_partition_idx]) 

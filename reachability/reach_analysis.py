@@ -196,9 +196,9 @@ class ReachabilityAnalysis:
         # print(self.coverage(output))
         c1, c2 = self.coverage(output)
 
-        # print("input: ", input_low, input_high)
-        # print("output: ", R_low, R_high)
-        # print("criteria: c1 = ", c1, " c2 = ", c2)
+        print("input: ", input_low, input_high)
+        print("output: ", R_low, R_high)
+        print("criteria: c1 = ", c1, " c2 = ", c2)
 
         if c1 >= safe_threshold:
             partitions = dict()
