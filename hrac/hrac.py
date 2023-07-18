@@ -137,7 +137,7 @@ class Boss(object):
     def planning_policy(self, start_partition, epsilon=1, goal=None, prev_partition=None):
         """Selects a random partition from the graph with probability epsilon, otherwise selects a successor partition on the shortest path in the graph"""
         p = np.random.random()
-        successors = list(self.automaton.successors(start_partition))
+        successors = list(self.graph.successors(start_partition))
         
         # if p > epsilon:         
         partition = self.identify_partition(goal)
@@ -145,8 +145,8 @@ class Boss(object):
             successors.remove(prev_partition)
         if start_partition in successors and start_partition != partition:
             successors.remove(start_partition)
-        if nx.has_path(self.automaton, source=start_partition, target=partition):
-            path = nx.shortest_path(self.automaton, source=start_partition, target=partition)
+        if nx.has_path(self.graph, source=start_partition, target=partition):
+            path = nx.shortest_path(self.graph, source=start_partition, target=partition)
             if len(path) > 1:
                 target_partition = path[1]
             else:
@@ -310,7 +310,7 @@ class Boss(object):
         if reach:
             self.G[start_partition] = copy.deepcopy(reach[0])
             if self.policy == 'Planning' and (start_partition, target_partition) in self.graph.edges:
-                reward = nx.get_edge_attributes(self.graph, 'reward')[(start_partition, target_partition)]
+                reward = 1 # nx.get_edge_attributes(self.graph, 'reward')[(start_partition, target_partition)]
                 self.automaton.add_edge(start_partition, target_partition, reward=reward)
             else:
                 self.automaton.add_edge(start_partition, target_partition, reward=-10)
@@ -323,7 +323,7 @@ class Boss(object):
                         self.Q[len(self.G) - 1] = self.Q[start_partition]
                     elif self.policy == 'Planning':
                         self.graph.add_node(len(self.G) - 1)
-                        reward = nx.get_edge_attributes(self.graph, 'reward')[(start_partition, target_partition)]
+                        reward = 1 # nx.get_edge_attributes(self.graph, 'reward')[(start_partition, target_partition)]
                         self.automaton.add_edge(len(self.G) - 1, target_partition, reward=reward)
                         self.graph.add_edge(len(self.G) - 1, target_partition, reward=reward)
 
@@ -369,7 +369,8 @@ class Boss(object):
                 and self.high_steps[(goal_pair[0], 
                                      goal_pair[1])] > min_steps \
                 and not nx.has_path(self.automaton, source=goal_pair[0], target=goal_partition) \
-                and goal_pair[0] != goal_pair[1]:
+                and goal_pair[0] != goal_pair[1] \
+                and goal_pair[1] not in [7, 8, 9]: # to remove later !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
                 
                 self.split(forward_model, start_partition=goal_pair[0], target_partition=goal_pair[1], replay_buffer=replay_buffer)
 

@@ -27,7 +27,7 @@ class ndInterval:
             self.interval = []
 
     def __contains__(self, item):
-        assert self.n == len(item)
+        # assert self.n == len(item)
         for i in range(self.n):
             if not item[i] in self.interval[i]:
                 return False
@@ -41,6 +41,7 @@ class ndInterval:
         return volume
 
     def adjacency(self, B):
+        """Checks for adjacent intervals that can be merged"""
         counter = self.n
         dim = -1
         for i in range(self.n):
@@ -68,20 +69,30 @@ class ndInterval:
         return C
 
     def search_merge(list):
-        for A in list:
-            for B in list:
-                dim = A.adjacency(B)
-                if dim > -1:
-                    C = A.merge(B, dim)
-                    list.remove(A)
-                    list.remove(B)
-                    list.append(C)
-                    break
-            if A not in list:
-                continue
+        """Searches for intervals that can be merged together and merges them"""
+        change = True
+        n = len(list)
+        while change and len(list) > 1:
+            for A in list:
+                for B in list:
+                    dim = A.adjacency(B)
+                    if dim > -1:
+                        C = A.merge(B, dim)
+                        change = True
+                        list.remove(A)
+                        list.remove(B)
+                        list.append(C)
+                        n = len(list)
+                        break
+                if A not in list:
+                    continue
+            if len(list) == n:
+                change = False
+        
         return list
 
-    def split(self, dims, lows=[], ups=[]):
+    def split(self, dims, lows=[], ups=[], split_value=dict()):
+        """Splits an interval across a dimension"""
         if not dims:
             return [self]
         if lows == [] or ups == []:
@@ -91,18 +102,78 @@ class ndInterval:
             d = dims[0]
             lows1 = copy.deepcopy(lows)
             ups1 = copy.deepcopy(ups)
-            ups1[d] = lows[d] + ((ups[d] - lows[d]) / 2)
+            if d not in split_value.keys():
+                ups1[d] = lows[d] + ((ups[d] - lows[d]) / 2)
+            else:
+                ups1[d] = split_value[d]
             partition1 = ndInterval(self.n, inf=lows1, sup=ups1)
             list1 = partition1.split(dims[1:], lows1, ups1)
 
             lows2 = copy.deepcopy(lows1)
-            lows2[d] = lows[d] + ((ups[d] - lows[d]) / 2)
+            if d not in split_value.keys():
+                lows2[d] = lows[d] + ((ups[d] - lows[d]) / 2)
+            else:
+                lows2[d] = split_value[d]
             ups2 = copy.deepcopy(ups)
             partition2 = ndInterval(self.n, inf=lows2, sup=ups2)
             list2 = partition2.split(dims[1:], lows2, ups2)
 
             return list1 + list2
 
+    def complement(self, subinterval):
+        """Computes the complement of a sub interval inside the original interval"""
+        complement = []
+        for v in range(self.n):
+            inf1 = copy.copy(self.inf)
+            sup1 = copy.copy(self.sup)
+            sup1[v] = subinterval.inf[v]
+            if sup1[v] > inf1[v]:
+                int1 = ndInterval(self.n, inf=inf1, sup=sup1)
+                complement.append(int1)
+
+            inf2 = copy.copy(self.inf)
+            inf2[v] = subinterval.sup[v]
+            sup2 = copy.copy(self.sup)
+            if sup2[v] > inf2[v]:
+                int2 = ndInterval(self.n, inf=inf2, sup=sup2)
+                complement.append(int2)
+
+        ndInterval.search_merge(complement)
+        return ndInterval.remove_duplicates(complement)
+
+    def intersection(self, interval):
+        intersection_inf = list(np.maximum(self.inf, interval.inf))
+        intersection_sup = list(np.minimum(self.sup, interval.sup))
+
+        # Empty intersection
+        if max(np.array(intersection_inf) > np.array(intersection_sup)):
+            return []
+        else:
+            return [intersection_inf, intersection_sup]
+
+    def remove_duplicates(interval_list):
+        """Takes a list of intervals and eliminates duplicate intersections"""
+        for i in range(len(interval_list)):
+            partition1 = interval_list[i]
+            for j in range(i+1,len(interval_list)):
+                partition2 = interval_list[j]
+                intersection = partition1.intersection(partition2)
+                if intersection:
+                    new_inf = []
+                    new_sup = []
+                    for v in range(partition2.n):
+                        if partition2.inf[v] < intersection[0][v]:
+                            new_sup += [intersection[0][v]]
+                        else:
+                            new_sup += [partition2.sup[v]]
+                        if partition2.sup[v] > intersection[1][v]:
+                            new_inf += [intersection[1][v]]
+                        else:
+                            new_inf += [partition2.inf[v]]
+                    interval_list[j] = ndInterval(partition2.n, new_inf, new_sup)
+
+
+        return interval_list
 
 class ReachabilityAnalysis:
 
@@ -267,5 +338,5 @@ def write_stats(stats):
 
 def reachability_analysis(network, input, output, alg):
     R = ReachabilityAnalysis(alg, input, output, network)
-    partitions = R.Reachability(0.001, 0.4, R.input, R.output, compute_error=True)
+    partitions = R.Reachability(0.1, 0.8, R.input, R.output, compute_error=True)
     return partitions

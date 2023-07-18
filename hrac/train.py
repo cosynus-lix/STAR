@@ -137,18 +137,18 @@ def evaluate_policy_gara(env, env_name, grid, boss_policy, manager_policy, contr
                 goal = new_obs["desired_goal"]
                 new_state = new_obs["observation"]
 
-                if new_state[:2] in boss_policy.G[6]:
-                    print("ant in part 6")
-                if new_state[:2] in boss_policy.G[5]:
-                    print("ant in part 5")
-                if new_state[:2] in boss_policy.G[4]:
-                    print("ant in part 4")
-                if new_state[:2] in boss_policy.G[3]:
-                    print("ant in part 3")
-                if new_state[:2] in boss_policy.G[2]:
-                    print("ant in part 2")
-                if new_state[:2] in boss_policy.G[1]:
-                    print("ant in part 1")
+                # if new_state[:2] in boss_policy.G[6] and state[:2] not in boss_policy.G[6]:
+                #     print("ant in part 6" + "targeting part" + str(target_partition_idx))
+                # if new_state[:2] in boss_policy.G[5] and state[:2] not in boss_policy.G[5]:
+                #     print("ant in part 5" + "targeting part" + str(target_partition_idx))
+                # if new_state[:2] in boss_policy.G[4] and state[:2] not in boss_policy.G[4]:
+                #     print("ant in part 4" + "targeting part" + str(target_partition_idx))
+                if new_state[:2] in boss_policy.G[3] and state[:2] not in boss_policy.G[3]:
+                    print("ant in part 3" + "targeting part" + str(target_partition_idx))
+                if new_state[:2] in boss_policy.G[2] and state[:2] not in boss_policy.G[2]:
+                    print("ant in part 2" + "targeting part" + str(target_partition_idx))
+                if new_state[:2] in boss_policy.G[1] and state[:2] not in boss_policy.G[1]:
+                    print("ant in part 1" + "targeting part" + str(target_partition_idx))
 
                 subgoal = controller_policy.subgoal_transition(state, subgoal, new_state)
                 
@@ -725,16 +725,22 @@ def run_gara(args):
     g_low = [-4, -4]
     g_high = [20, 20]
     
-    G_init = [utils.ndInterval(goal_dim, inf=[-1,-1], sup=[8,8]),
-              utils.ndInterval(goal_dim, inf=[8,-1], sup=[16,8]),
-              utils.ndInterval(goal_dim, inf=[16,-1], sup=[20,8]),
-              utils.ndInterval(goal_dim, inf=[16,8], sup=[20,16]),
-              utils.ndInterval(goal_dim, inf=[16,16], sup=[20,20]),
-              utils.ndInterval(goal_dim, inf=[8,16], sup=[16,20]),
-              utils.ndInterval(goal_dim, inf=[-1,16], sup=[8,20]),
-              utils.ndInterval(goal_dim, inf=[-1,-3], sup=[20,-1]),
-              utils.ndInterval(goal_dim, inf=[-1,8], sup=[16,16]),
-              utils.ndInterval(goal_dim, inf=[-4,-4], sup=[-1,20])
+    # G_init = [utils.ndInterval(goal_dim, inf=[-1,-1], sup=[8,8]),
+    #           utils.ndInterval(goal_dim, inf=[8,-1], sup=[16,8]),
+    #           utils.ndInterval(goal_dim, inf=[16,-1], sup=[20,8]),
+    #           utils.ndInterval(goal_dim, inf=[16,8], sup=[20,16]),
+    #           utils.ndInterval(goal_dim, inf=[16,16], sup=[20,20]),
+    #           utils.ndInterval(goal_dim, inf=[8,16], sup=[16,20]),
+    #           utils.ndInterval(goal_dim, inf=[-1,16], sup=[8,20]),
+    #           utils.ndInterval(goal_dim, inf=[-1,-3], sup=[20,-1]),
+    #           utils.ndInterval(goal_dim, inf=[-1,8], sup=[16,16]),
+    #           utils.ndInterval(goal_dim, inf=[-4,-4], sup=[-1,20])
+    #           ]
+
+    G_init = [utils.ndInterval(goal_dim, inf=[-4,-4], sup=[8,8]),
+              utils.ndInterval(goal_dim, inf=[8,-4], sup=[20,8]),
+              utils.ndInterval(goal_dim, inf=[8,8], sup=[20,20]),
+              utils.ndInterval(goal_dim, inf=[0,8], sup=[8,20])
               ]
     
     resolution = 24
@@ -776,7 +782,10 @@ def run_gara(args):
     )
 
     for i in range(len(G_init)-4):
-            boss_policy.automaton.add_edge(i,i+1)
+            boss_policy.graph.add_edge(i,i+1)
+
+    for i in range(len(G_init)):
+        boss_policy.graph.add_edge(i,i+1)
 
     calculate_controller_reward = get_reward_function(
         controller_goal_dim, absolute_goal=args.absolute_goal, binary_reward=args.binary_int_reward)
