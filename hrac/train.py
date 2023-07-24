@@ -979,17 +979,18 @@ def run_gara(args):
         action = ctrl_noise.perturb_action(action, -max_action, max_action)
         action_copy = action.copy()
 
-        next_tup, boss_reward, done, _ = env.step(action_copy)
+        next_tup, ext_reward, done, _ = env.step(action_copy)
 
         next_goal = next_tup["desired_goal"]
         next_state = next_tup["observation"]
 
         controller_reward = calculate_controller_reward(state, subgoal, next_state, args.ctrl_rew_scale)
         manager_reward = 4 * get_manager_reward(next_state[:2], target_partition_interval)
+        boss_reward = ext_reward
 
         reached_partition_idx = boss_policy.identify_partition(state)
         reached_partition = np.array(boss_policy.G[reached_partition_idx].inf + boss_policy.G[reached_partition_idx].sup)
-        boss_policy.policy_update(start_partition_idx, target_partition_idx, reached_partition_idx, boss_reward, done, goal, args.boss_discount_factor, args.boss_alpha)
+        
         if transition_list and total_timesteps > args.boss_propose_freq and total_timesteps % args.boss_propose_freq != 0:
             s = controller_buffer.storage[0][-args.boss_propose_freq - 1]
             if reached_partition_idx == prev_target_partition_idx:
@@ -1025,6 +1026,7 @@ def run_gara(args):
         timesteps_since_subgoal += 1
 
         if timesteps_since_partition % args.boss_propose_freq == 0:
+            boss_policy.policy_update(start_partition_idx, target_partition_idx, reached_partition_idx, boss_reward, done, goal, args.boss_discount_factor, args.boss_alpha)
             prev_start_partition_idx = start_partition_idx
             prev_start_partition = start_partition
             prev_target_partition_idx = target_partition_idx  
