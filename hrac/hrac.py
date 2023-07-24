@@ -88,7 +88,8 @@ class Boss(object):
             self.automaton.add_node(i)
 
         if self.policy == 'Q-learning':
-            self.Q = defaultdict(lambda: np.zeros(len(self.G)))
+            # self.Q = defaultdict(lambda: np.zeros(len(self.G)))
+            self.Q = np.zeros((len(self.G), len(self.G), len(self.G)))
         elif self.policy == 'Planning':
             self.graph = copy.deepcopy(self.automaton)
 
@@ -126,10 +127,15 @@ class Boss(object):
     def Q_learning_policy(self, start_partition, goal=None, epsilon=1):
         """Epsilon-greedy policy for Q-learning"""
         Q = self.Q
-        policy = make_epsilon_greedy_policy(Q, epsilon, len(self.G))
-        action_probs = policy(start_partition, goal)
-        action = np.random.choice(np.arange(len(action_probs)), p=action_probs)
-        return action
+        if goal is not None:
+            goal = self.identify_partition(goal)
+        if start_partition == goal: 
+            return goal 
+        else: 
+            policy = make_epsilon_greedy_policy(Q, epsilon, len(self.G))
+            action_probs = policy(start_partition, goal)
+            action = np.random.choice(np.arange(len(action_probs)), p=action_probs)
+            return action
     
     def Q_learning_update(self, start_partition, target_partition, reached_partition, reward, done, discount, alpha, goal):
         """Update the Q-table"""
@@ -140,6 +146,7 @@ class Boss(object):
             td_delta = td_target - self.Q[start_partition][target_partition]
             self.Q[start_partition][reached_partition] += alpha * td_delta
         else:
+            goal = self.identify_partition(goal)
             best_next_action = np.argmax(self.Q[reached_partition, goal])
             td_target = reward + (1 - done) * discount * self.Q[reached_partition, goal][
                 best_next_action]
@@ -313,13 +320,21 @@ class Boss(object):
         n = len(self.G)
         next = list(self.automaton.successors(start_partition))
         if reach:
+            # copy current Q table into a bigger one
+            new_n = len(self.G) + len(reach) - 1 + len(no_reach)
+            new_Q = np.zeros((new_n, new_n, new_n))
+            new_Q[:n, :n, :n] = self.Q
+            self.Q = new_Q
+
             self.G[start_partition] = copy.deepcopy(reach[0])
-            if self.policy == 'Planning' and (start_partition, target_partition) in self.graph.edges:
+            self.Q[start_partition, :][target_partition] += 1
+            if self.policy == 'Planning':
+            # and (start_partition, target_partition) in self.graph.edges:
                 reward = 1 # nx.get_edge_attributes(self.graph, 'reward')[(start_partition, target_partition)]
                 self.automaton.add_edge(start_partition, target_partition, reward=reward)
             else:
                 self.automaton.add_edge(start_partition, target_partition, reward=-10)
-                self.graph.add_edge(start_partition, target_partition, reward=-10)
+                # self.graph.add_edge(start_partition, target_partition, reward=-10)
 
             if len(reach) > 1:
                 for i in range(1, len(reach)):
@@ -327,10 +342,10 @@ class Boss(object):
                     if self.policy == 'Q-learning':
                         self.Q[len(self.G) - 1,:] = self.Q[start_partition,:]
                     elif self.policy == 'Planning':
-                        self.graph.add_node(len(self.G) - 1)
+                        # self.graph.add_node(len(self.G) - 1)
                         reward = 1 # nx.get_edge_attributes(self.graph, 'reward')[(start_partition, target_partition)]
                         self.automaton.add_edge(len(self.G) - 1, target_partition, reward=reward)
-                        self.graph.add_edge(len(self.G) - 1, target_partition, reward=reward)
+                        # self.graph.add_edge(len(self.G) - 1, target_partition, reward=reward)
                             
                     for j in next:
                         self.automaton.add_edge(len(self.G) - 1, j, reward=-10)
@@ -339,10 +354,10 @@ class Boss(object):
                     self.G.append(copy.deepcopy(no_reach[i]))
                     if self.policy == 'Q-learning':
                         self.Q[len(self.G) - 1,:] = self.Q[start_partition]
-                        self.Q[len(self.G) - 1,:][start_partition] = self.Q[start_partition][target_partition] / discount
+                        self.Q[len(self.G) - 1,:][start_partition] = self.Q[start_partition, :][target_partition] / discount
                         self.Q[len(self.G) - 1,:][target_partition] = 0
-                    elif self.policy == 'Planning':
-                        self.graph.add_node(len(self.G) - 1)
+                    # elif self.policy == 'Planning':
+                    #     self.graph.add_node(len(self.G) - 1)
 
                     self.automaton.add_node(len(self.G) - 1)
                     self.unsafe.append([len(self.G) - 1, target_partition])
@@ -355,11 +370,11 @@ class Boss(object):
                     #     for i in range(1,len(reach)):
                     #         self.split(forward_model, len(self.G) - 1, n-1+i, replay_buffer)
 
-            if self.policy == 'Q-learning':
-                for partition in self.Q.keys():
-                    tmp = self.Q[partition]
-                    self.Q[partition] = np.zeros(len(self.G))
-                    self.Q[partition][:len(tmp)] = tmp
+            # if self.policy == 'Q-learning':
+            #     for partition in self.Q.keys():
+            #         tmp = self.Q[partition,:]
+            #         self.Q[partition, :] = np.zeros(len(self.G))
+            #         self.Q[partition, :][:len(tmp)] = tmp
             # elif self.policy == 'Planning':
                 # self.build_graph(replay_buffer)
 
@@ -372,8 +387,8 @@ class Boss(object):
                 and self.high_steps[(goal_pair[0], 
                                      goal_pair[1])] > min_steps \
                 and not nx.has_path(self.automaton, source=goal_pair[0], target=goal_partition) \
-                and goal_pair[0] != goal_pair[1] \
-                and goal_pair[1] not in [7, 8, 9]: # to remove later !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                and goal_pair[0] != goal_pair[1]:
+                # and goal_pair[1] not in [7, 8, 9]: # to remove later !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
                 
                 self.split(forward_model, start_partition=goal_pair[0], target_partition=goal_pair[1], replay_buffer=replay_buffer)
 
