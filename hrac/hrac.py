@@ -44,7 +44,7 @@ def get_tensor(z):
         return var(torch.FloatTensor(z.copy()))
 
 
-def make_epsilon_greedy_policy(Q, epsilon, nA):
+def make_epsilon_greedy_policy(Q, epsilon, nA, goal=None):
     """
         Creates an epsilon-greedy policy based on a given Q-function and epsilon.
 
@@ -60,10 +60,15 @@ def make_epsilon_greedy_policy(Q, epsilon, nA):
 
         """
 
-    def policy_fn(observation):
-        A = np.ones(nA, dtype=float) * epsilon / nA
-        best_action = np.argmax(Q[observation])
-        A[best_action] += (1.0 - epsilon)
+    def policy_fn(observation, goal=None):
+        if goal is None:
+            A = np.ones(nA, dtype=float) * epsilon / nA
+            best_action = np.argmax(Q[observation])
+            A[best_action] += (1.0 - epsilon)
+        else:
+            A = np.ones(nA, dtype=float) * epsilon / nA
+            best_action = np.argmax(Q[observation, goal])
+            A[best_action] += (1.0 - epsilon)
         return A
 
     return policy_fn
@@ -104,36 +109,43 @@ class Boss(object):
 
     def select_partition(self, start_partition, epsilon, goal=None):
         if self.policy == 'Q-learning':
-            partition = self.Q_learning_policy(start_partition, epsilon)
+            partition = self.Q_learning_policy(start_partition, goal, epsilon)
         elif self.policy == 'Planning':
             partition = self.planning_policy(start_partition, epsilon, goal)
         
         self.partition_steps[start_partition, partition] += 1
         return partition
 
-    def policy_update(self, start_partition, target_partition, reached_partition, reward, done, discount=0.99, alpha=0.7):
+    def policy_update(self, start_partition, target_partition, reached_partition, reward, done, goal= None, discount=0.99, alpha=0.5):
         if self.policy == 'Q-learning':
-            self.Q_learning_update(start_partition, target_partition, reached_partition, reward, done, discount, alpha)
+            self.Q_learning_update(start_partition, target_partition, reached_partition, reward, done, discount, alpha, goal)
         elif self.policy == 'Planning':
             self.planning_update(start_partition, target_partition, reached_partition, reward, done)
 
 
-    def Q_learning_policy(self, start_partition, epsilon=1):
+    def Q_learning_policy(self, start_partition, goal=None, epsilon=1):
         """Epsilon-greedy policy for Q-learning"""
         Q = self.Q
         policy = make_epsilon_greedy_policy(Q, epsilon, len(self.G))
-        action_probs = policy(start_partition)
+        action_probs = policy(start_partition, goal)
         action = np.random.choice(np.arange(len(action_probs)), p=action_probs)
         return action
     
-    def Q_learning_update(self, start_partition, target_partition, reached_partition, reward, done, discount, alpha):
+    def Q_learning_update(self, start_partition, target_partition, reached_partition, reward, done, discount, alpha, goal):
         """Update the Q-table"""
-        best_next_action = np.argmax(self.Q[reached_partition])
-        td_target = reward + (1 - done) * discount * self.Q[reached_partition][
-            best_next_action]
-        td_delta = td_target - self.Q[start_partition][target_partition]
-        self.Q[start_partition][reached_partition] += alpha * td_delta
-
+        if goal is None:
+            best_next_action = np.argmax(self.Q[reached_partition])
+            td_target = reward + (1 - done) * discount * self.Q[reached_partition][
+                best_next_action]
+            td_delta = td_target - self.Q[start_partition][target_partition]
+            self.Q[start_partition][reached_partition] += alpha * td_delta
+        else:
+            best_next_action = np.argmax(self.Q[reached_partition, goal])
+            td_target = reward + (1 - done) * discount * self.Q[reached_partition, goal][
+                best_next_action]
+            td_delta = td_target - self.Q[start_partition, goal][target_partition]
+            self.Q[start_partition, goal][reached_partition] += alpha * td_delta
+            
     def planning_policy(self, start_partition, epsilon=1, goal=None, prev_partition=None):
         """Selects a random partition from the graph with probability epsilon, otherwise selects a successor partition on the shortest path in the graph"""
         p = np.random.random()
@@ -194,20 +206,12 @@ class Boss(object):
         #         self.graph.add_edge(start_partition, reached_partition, reward=abs(reward_ext))
         # elif (start_partition, reached_partition) not in self.graph.edges():
         #     self.graph.add_edge(start_partition, reached_partition, reward=abs(reward_ext))
-        
-        
-        
+                
 
     def split(self, forward_model, start_partition, target_partition, replay_buffer=[]):
         """Split the partition into two partitions according to reachability analysis"""
 
         model = forward_model
-        # model = convert_h5(model)
-
-        # input_lower = self.G[start_partition].inf + self.abs_low[self.goal_dim:] + list(self.comp_low[start_partition]) + self.G[target_partition].inf + self.G[target_partition].sup
-        # input_upper = self.G[start_partition].sup + self.abs_high[self.goal_dim:] + list(self.comp_high[start_partition]) + self.G[target_partition].inf + self.G[target_partition].sup
-        # output_lower = self.G[target_partition].inf + self.abs_low[self.goal_dim:]
-        # output_upper = self.G[target_partition].sup + self.abs_high[self.goal_dim:]
 
         input_lower = self.G[start_partition].inf + self.G[target_partition].inf + self.G[target_partition].sup
         input_upper = self.G[start_partition].sup + self.G[target_partition].inf + self.G[target_partition].sup
@@ -305,6 +309,7 @@ class Boss(object):
         Update the agent partitions and automaton.
         """
         # Expand the partitions list, update automaton and relabel memory
+        discount = 0.99
         n = len(self.G)
         next = list(self.automaton.successors(start_partition))
         if reach:
@@ -320,15 +325,12 @@ class Boss(object):
                 for i in range(1, len(reach)):
                     self.G.append(copy.deepcopy(reach[i]))
                     if self.policy == 'Q-learning':
-                        self.Q[len(self.G) - 1] = self.Q[start_partition]
+                        self.Q[len(self.G) - 1,:] = self.Q[start_partition,:]
                     elif self.policy == 'Planning':
                         self.graph.add_node(len(self.G) - 1)
                         reward = 1 # nx.get_edge_attributes(self.graph, 'reward')[(start_partition, target_partition)]
                         self.automaton.add_edge(len(self.G) - 1, target_partition, reward=reward)
                         self.graph.add_edge(len(self.G) - 1, target_partition, reward=reward)
-
-                    # self.automaton.add_node(len(self.G) - 1)
-                    # self.automaton.add_edge(len(self.G) - 1, target_partition, reward=-10)
                             
                     for j in next:
                         self.automaton.add_edge(len(self.G) - 1, j, reward=-10)
@@ -336,8 +338,9 @@ class Boss(object):
                 for i in range(len(no_reach)):
                     self.G.append(copy.deepcopy(no_reach[i]))
                     if self.policy == 'Q-learning':
-                        self.Q[len(self.G) - 1] = self.Q[start_partition]
-                        self.Q[len(self.G) - 1][target_partition] = 0
+                        self.Q[len(self.G) - 1,:] = self.Q[start_partition]
+                        self.Q[len(self.G) - 1,:][start_partition] = self.Q[start_partition][target_partition] / discount
+                        self.Q[len(self.G) - 1,:][target_partition] = 0
                     elif self.policy == 'Planning':
                         self.graph.add_node(len(self.G) - 1)
 
@@ -352,11 +355,11 @@ class Boss(object):
                     #     for i in range(1,len(reach)):
                     #         self.split(forward_model, len(self.G) - 1, n-1+i, replay_buffer)
 
-            # if self.policy == 'Q-learning':
-            #     for partition in self.Q.keys():
-            #         tmp = self.Q[partition]
-            #         self.Q[partition] = np.zeros(len(self.G))
-            #         self.Q[partition][:len(tmp)] = tmp
+            if self.policy == 'Q-learning':
+                for partition in self.Q.keys():
+                    tmp = self.Q[partition]
+                    self.Q[partition] = np.zeros(len(self.G))
+                    self.Q[partition][:len(tmp)] = tmp
             # elif self.policy == 'Planning':
                 # self.build_graph(replay_buffer)
 
