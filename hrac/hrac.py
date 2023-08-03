@@ -321,17 +321,20 @@ class Boss(object):
         if reach:
             if self.policy == 'Q-learning':
                 size_G = len(self.G)
-                size_reach = len(reach)
+                size_reach = len(reach) - 1 
                 size_no_reach = len(no_reach)
-
+                print(len(self.G))
+                print(self.Q.shape)
                 tmp = self.Q[:, :]
-
+                print(tmp.shape)
                 self.Q = np.zeros((size_G + size_reach + size_no_reach, size_G + size_reach + size_no_reach, size_G + size_reach + size_no_reach))
-                self.Q[:size_G, :size_G, :size_G] = tmp[:, :, np.newaxis]
-
+                print(self.Q.shape)
+                self.Q[:size_G, :size_G, :size_G] = tmp
 
             self.G[start_partition] = copy.deepcopy(reach[0])
-            if self.policy == 'Planning' and (start_partition, target_partition) in self.graph.edges:
+            if self.policy == 'Q-learning':
+                self.Q[start_partition, :, target_partition] += 1
+            elif self.policy == 'Planning' and (start_partition, target_partition) in self.graph.edges:
                 reward = 1 # nx.get_edge_attributes(self.graph, 'reward')[(start_partition, target_partition)]
                 self.automaton.add_edge(start_partition, target_partition, reward=reward)
             else:
@@ -342,6 +345,7 @@ class Boss(object):
                 for i in range(1, len(reach)):
                     self.G.append(copy.deepcopy(reach[i]))
                     if self.policy == 'Q-learning':
+                        self.Q[len(self.G) - 1,:,target_partition] += 1
                         self.Q[len(self.G) - 1,:] = self.Q[start_partition,:]
                         self.Q[len(self.G) - 1, :, start_partition] = self.Q[start_partition, :, start_partition]
                         self.Q[start_partition, :, len(self.G) - 1] = self.Q[start_partition, :, start_partition]

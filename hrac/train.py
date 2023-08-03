@@ -880,8 +880,8 @@ def run_gara(args):
                             Gt = np.array(boss_policy.G[goal_pair[1]].inf + boss_policy.G[goal_pair[1]].sup)
                             utils.train_forward_model(fwd_model, boss_buffer, Gs, Gt, n_epochs=args.fwd_training_epochs, \
                                                     batch_size=args.fwd_batch_size, device=device, verbose=False) 
-                        fwd_errors.append(fwd_model.measure_error(boss_buffer, args.fwd_training_epochs))
-                    if len(fwd_errors) > 1 and fwd_errors[-1] - fwd_errors[-2] < 0.0001:
+                        fwd_errors.append(fwd_model.measure_error(boss_buffer, args.fwd_batch_size))
+                    if len(fwd_errors) > 1 and fwd_errors[-1] - fwd_errors[-2] < 0.001:
                         boss_policy.train(fwd_model, goal, transition_list, args.boss_buffer_min_size, batch_size=args.boss_batch_size, replay_buffer=controller_buffer)
 
                     writer.add_scalar("data/Boss_nbr_part", len(boss_policy.G), total_timesteps)
