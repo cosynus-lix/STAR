@@ -831,7 +831,8 @@ def run_gara(args):
     timesteps_since_subgoal = 0
     episode_num = 0
     done = True
-    fwd_errors = []
+    fwd_errors = dict(lambda: [])
+    # fwd_errors = []
     evaluations = []
 
     # Train
@@ -880,9 +881,12 @@ def run_gara(args):
                             Gt = np.array(boss_policy.G[goal_pair[1]].inf + boss_policy.G[goal_pair[1]].sup)
                             utils.train_forward_model(fwd_model, boss_buffer, Gs, Gt, n_epochs=args.fwd_training_epochs, \
                                                     batch_size=args.fwd_batch_size, device=device, verbose=False) 
-                        fwd_errors.append(fwd_model.measure_error(boss_buffer, args.fwd_batch_size))
-                    if len(fwd_errors) > 1 and fwd_errors[-1] - fwd_errors[-2] < 0.001:
-                        boss_policy.train(fwd_model, goal, transition_list, args.boss_buffer_min_size, batch_size=args.boss_batch_size, replay_buffer=controller_buffer)
+                        # fwd_errors.append(fwd_model.measure_error(boss_buffer, args.fwd_batch_size))
+                            fwd_errors[(goal_pair[0], goal_pair[1])].append(fwd_model.measure_error(boss_buffer, args.fwd_batch_size, goal_pair[0], goal_pair[1]))
+                    # if len(fwd_errors) > 1 and fwd_errors[-1] - fwd_errors[-2] < 0.001:
+                        # boss_policy.train(fwd_model, goal, transition_list, args.boss_buffer_min_size, batch_size=args.boss_batch_size, replay_buffer=controller_buffer)
+                            if len(fwd_errors[(goal_pair[0], goal_pair[1])]) > 1 and fwd_errors[(goal_pair[0], goal_pair[1])][-1] - fwd_errors[(goal_pair[0], goal_pair[1])][-2] < 0.001:
+                                boss_policy.train(fwd_model, goal, goal_pair, args.boss_buffer_min_size, batch_size=args.boss_batch_size, replay_buffer=controller_buffer)
 
                     writer.add_scalar("data/Boss_nbr_part", len(boss_policy.G), total_timesteps)
                     writer.add_scalar("data/Boss_eps", epsilon, total_timesteps)

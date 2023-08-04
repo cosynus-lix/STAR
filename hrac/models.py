@@ -193,9 +193,10 @@ class ForwardModel():
         input = tf.concat((states[:, :self.state_dim], goals), axis=1)
         return self.model.predict(input, verbose=verbose)
     
-    def measure_error(self, partition_buffer, batch_size):
-        x, gs, y, gt, rl, rh = partition_buffer.sample(batch_size)
-        loss = mean_squared_error(y[:, :self.state_dim], self.predict(x, gs))
+    def measure_error(self, partition_buffer, batch_size, Gs = None, Gt=None):
+        # x, gs, y, gt, rl, rh = partition_buffer.sample(batch_size)
+        x, gs, y, gt, rl, rh = partition_buffer.target_sample(Gs, Gt, batch_size)
+        loss = mean_squared_error(y[:, :self.state_dim], self.predict(x, gt))
         return loss
 
     def save(self, path):

@@ -332,6 +332,7 @@ class Boss(object):
                 self.Q[:size_G, :size_G, :size_G] = tmp
 
             self.G[start_partition] = copy.deepcopy(reach[0])
+            self.automaton.add_edge(start_partition, target_partition, reward=1)
             if self.policy == 'Q-learning':
                 self.Q[start_partition, :, target_partition] += 1
             elif self.policy == 'Planning' and (start_partition, target_partition) in self.graph.edges:
@@ -344,6 +345,8 @@ class Boss(object):
             if len(reach) > 1:
                 for i in range(1, len(reach)):
                     self.G.append(copy.deepcopy(reach[i]))
+                    self.automaton.add_node(len(self.G) - 1)
+                    self.automaton.add_edge(len(self.G) - 1, target_partition, reward=1)
                     if self.policy == 'Q-learning':
                         self.Q[len(self.G) - 1,:,target_partition] += 1
                         self.Q[len(self.G) - 1,:] = self.Q[start_partition,:]
@@ -352,7 +355,6 @@ class Boss(object):
                     elif self.policy == 'Planning':
                         self.graph.add_node(len(self.G) - 1)
                         reward = 1 # nx.get_edge_attributes(self.graph, 'reward')[(start_partition, target_partition)]
-                        self.automaton.add_edge(len(self.G) - 1, target_partition, reward=reward)
                         self.graph.add_edge(len(self.G) - 1, target_partition, reward=reward)
                             
                     for j in next:
@@ -360,6 +362,11 @@ class Boss(object):
             if no_reach:
                 for i in range(len(no_reach)):
                     self.G.append(copy.deepcopy(no_reach[i]))
+                    self.automaton.add_node(len(self.G) - 1)
+                    self.unsafe.append([len(self.G) - 1, target_partition])
+                    for j in next:
+                        self.automaton.add_edge(len(self.G) - 1, j, reward=1)
+
                     if self.policy == 'Q-learning':
                         self.Q[len(self.G) - 1,:] = self.Q[start_partition,:]
                         self.Q[len(self.G) - 1, :][start_partition] = self.Q[start_partition, :][target_partition] / discount
@@ -367,16 +374,6 @@ class Boss(object):
                     elif self.policy == 'Planning':
                         self.graph.add_node(len(self.G) - 1)
 
-                    self.automaton.add_node(len(self.G) - 1)
-                    self.unsafe.append([len(self.G) - 1, target_partition])
-
-                    for j in next:
-                        self.automaton.add_edge(len(self.G) - 1, j, reward=-10)
-                    
-                    # if forward_model is not None:
-                    #     self.split(forward_model, len(self.G) - 1, start_partition, replay_buffer)
-                    #     for i in range(1,len(reach)):
-                    #         self.split(forward_model, len(self.G) - 1, n-1+i, replay_buffer)
 
             
             # elif self.policy == 'Planning':

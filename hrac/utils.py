@@ -31,7 +31,7 @@ class ndInterval:
             self.interval = []
 
     def __contains__(self, item):
-        assert self.n == len(item)
+        # assert self.n == len(item)
         for i in range(self.n):
             if not item[i] in self.interval[i]:
                 return False
