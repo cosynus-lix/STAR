@@ -7,6 +7,7 @@ import os
 import numpy as np
 import pandas as pd
 from math import ceil
+from collections import defaultdict
 
 import hrac.utils as utils
 import hrac.hrac as hrac
@@ -89,6 +90,7 @@ def evaluate_policy_gara(env, env_name, grid, boss_policy, manager_policy, contr
     resolution = 24
     g_low = [-4, -4]
     g_high = [20, 20]
+    print(boss_policy.Q[:,boss_policy.identify_partition(goal),:])
     with torch.no_grad():
         avg_reward = 0.
         avg_reward_manager = [0]*len(boss_policy.G)
@@ -831,7 +833,7 @@ def run_gara(args):
     timesteps_since_subgoal = 0
     episode_num = 0
     done = True
-    fwd_errors = dict(lambda: [])
+    fwd_errors = defaultdict(lambda: [])
     # fwd_errors = []
     evaluations = []
 
@@ -886,7 +888,7 @@ def run_gara(args):
                     # if len(fwd_errors) > 1 and fwd_errors[-1] - fwd_errors[-2] < 0.001:
                         # boss_policy.train(fwd_model, goal, transition_list, args.boss_buffer_min_size, batch_size=args.boss_batch_size, replay_buffer=controller_buffer)
                             if len(fwd_errors[(goal_pair[0], goal_pair[1])]) > 1 and fwd_errors[(goal_pair[0], goal_pair[1])][-1] - fwd_errors[(goal_pair[0], goal_pair[1])][-2] < 0.001:
-                                boss_policy.train(fwd_model, goal, goal_pair, args.boss_buffer_min_size, batch_size=args.boss_batch_size, replay_buffer=controller_buffer)
+                                boss_policy.train(fwd_model, goal, [goal_pair], args.boss_buffer_min_size, batch_size=args.boss_batch_size, replay_buffer=controller_buffer)
 
                     writer.add_scalar("data/Boss_nbr_part", len(boss_policy.G), total_timesteps)
                     writer.add_scalar("data/Boss_eps", epsilon, total_timesteps)
@@ -1003,7 +1005,7 @@ def run_gara(args):
         controller_goal = subgoal
         episode_reward += controller_reward
 
-        if args.inner_dones:
+        if args.inner_dones: 
             ctrl_done = done or timesteps_since_subgoal % args.manager_propose_freq == 0
         else:
             ctrl_done = done

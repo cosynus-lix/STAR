@@ -144,13 +144,13 @@ class Boss(object):
             td_target = reward + (1 - done) * discount * self.Q[reached_partition][
                 best_next_action]
             td_delta = td_target - self.Q[start_partition][target_partition]
-            self.Q[start_partition][reached_partition] += alpha * td_delta
+            self.Q[start_partition][target_partition] += alpha * td_delta
         else:
-            best_next_action = np.argmax(self.Q[reached_partition][goal])
+            best_next_action = np.argmax(self.Q[reached_partition,goal])
             td_target = reward + (1 - done) * discount * self.Q[reached_partition, goal][
                 best_next_action]
             td_delta = td_target - self.Q[start_partition, goal][target_partition]
-            self.Q[start_partition, goal][reached_partition] += alpha * td_delta
+            self.Q[start_partition, goal][target_partition] += alpha * td_delta
             
     def planning_policy(self, start_partition, epsilon=1, goal=None, prev_partition=None):
         """Selects a random partition from the graph with probability epsilon, otherwise selects a successor partition on the shortest path in the graph"""
@@ -348,7 +348,7 @@ class Boss(object):
                     self.automaton.add_node(len(self.G) - 1)
                     self.automaton.add_edge(len(self.G) - 1, target_partition, reward=1)
                     if self.policy == 'Q-learning':
-                        self.Q[len(self.G) - 1,:,target_partition] += 1
+                        self.Q[len(self.G) - 1,:,target_partition] += 10
                         self.Q[len(self.G) - 1,:] = self.Q[start_partition,:]
                         self.Q[len(self.G) - 1, :, start_partition] = self.Q[start_partition, :, start_partition]
                         self.Q[start_partition, :, len(self.G) - 1] = self.Q[start_partition, :, start_partition]
@@ -383,7 +383,7 @@ class Boss(object):
     def train(self, forward_model, goal, transition_list, min_steps, batch_size=100, replay_buffer=[]):
         goal_partition = self.identify_partition(goal)
         for goal_pair in transition_list:
-            if goal_pair not in self.automaton.edges() \
+             if goal_pair not in self.automaton.edges() \
                 and goal_pair not in self.unsafe \
                 and self.high_steps[(goal_pair[0], 
                                      goal_pair[1])] > min_steps \
