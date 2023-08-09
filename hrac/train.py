@@ -90,7 +90,7 @@ def evaluate_policy_gara(env, env_name, grid, boss_policy, manager_policy, contr
     resolution = 24
     g_low = [-4, -4]
     g_high = [20, 20]
-    print(boss_policy.Q[:,boss_policy.identify_partition(goal),:])
+    print(boss_policy.Q[:,3,:])
     with torch.no_grad():
         avg_reward = 0.
         avg_reward_manager = [0]*len(boss_policy.G)
@@ -834,6 +834,7 @@ def run_gara(args):
     episode_num = 0
     done = True
     fwd_errors = defaultdict(lambda: [])
+    boss_reward = -100
     # fwd_errors = []
     evaluations = []
 
@@ -979,13 +980,14 @@ def run_gara(args):
         action = ctrl_noise.perturb_action(action, -max_action, max_action)
         action_copy = action.copy()
 
-        next_tup, boss_reward, done, _ = env.step(action_copy)
+        next_tup, ext_reward, done, _ = env.step(action_copy)
 
         next_goal = next_tup["desired_goal"]
         next_state = next_tup["observation"]
 
         controller_reward = calculate_controller_reward(state, subgoal, next_state, args.ctrl_rew_scale)
         manager_reward = 4 * get_manager_reward(next_state[:2], target_partition_interval)
+        boss_reward = max(ext_reward, boss_reward)
 
         reached_partition_idx = boss_policy.identify_partition(state)
         reached_partition = np.array(boss_policy.G[reached_partition_idx].inf + boss_policy.G[reached_partition_idx].sup)
@@ -1048,7 +1050,7 @@ def run_gara(args):
             if [start_partition_idx, target_partition_idx] not in transition_list:
                 transition_list.append([start_partition_idx, target_partition_idx]) 
             boss_policy.high_steps[(start_partition_idx, target_partition_idx)] += 1   
-
+            boss_reward = -100
         if timesteps_since_subgoal % args.manager_propose_freq == 0:
             manager_transition[1] = state
             manager_transition[5] = float(done)        

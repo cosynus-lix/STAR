@@ -73,6 +73,35 @@ def make_epsilon_greedy_policy(Q, epsilon, nA, goal=None):
 
     return policy_fn
 
+def boltzmann_policy(Q, temperature, nA, goal=None):
+    """
+        Creates an epsilon-greedy policy based on a given Q-function and epsilon.
+
+        Args:
+            Q: A dictionary that maps from state -> action-values.
+                Each value is a numpy array of length nA (see below)
+            epsilon: The probability to select a random action. Float between 0 and 1.
+            nA: Number of actions in the environment.
+
+        Returns:
+            A function that takes the observation as an argument and returns
+            the probabilities for each action in the form of a numpy array of length nA.
+
+        """
+
+    def policy_fn(observation, goal=None):
+        if goal is None:
+            p = np.exp(Q[observation]/temperature).astype('float64')
+            action = np.random.choice(4, size=1, p=p/p.sum())
+            return int(action[0])    
+        else:
+            A = np.ones(nA, dtype=float) * epsilon / nA
+            best_action = np.argmax(Q[observation, goal])
+            A[best_action] += (1.0 - epsilon)
+        return A
+
+    return policy_fn
+
 
 class Boss(object):
 
@@ -327,14 +356,16 @@ class Boss(object):
                 print(self.Q.shape)
                 tmp = self.Q[:, :]
                 print(tmp.shape)
-                self.Q = np.zeros((size_G + size_reach + size_no_reach, size_G + size_reach + size_no_reach, size_G + size_reach + size_no_reach))
+                self.Q = -100*np.ones((size_G + size_reach + size_no_reach, size_G + size_reach + size_no_reach, size_G + size_reach + size_no_reach))
                 print(self.Q.shape)
                 self.Q[:size_G, :size_G, :size_G] = tmp
 
             self.G[start_partition] = copy.deepcopy(reach[0])
             self.automaton.add_edge(start_partition, target_partition, reward=1)
+            self.unsafe.append([target_partition, start_partition])
             if self.policy == 'Q-learning':
-                self.Q[start_partition, :, target_partition] += 1
+                tmp = self.Q[start_partition, :, target_partition]
+                self.Q[start_partition, :, target_partition] = 0
             elif self.policy == 'Planning' and (start_partition, target_partition) in self.graph.edges:
                 reward = 1 # nx.get_edge_attributes(self.graph, 'reward')[(start_partition, target_partition)]
                 self.automaton.add_edge(start_partition, target_partition, reward=reward)
@@ -347,8 +378,9 @@ class Boss(object):
                     self.G.append(copy.deepcopy(reach[i]))
                     self.automaton.add_node(len(self.G) - 1)
                     self.automaton.add_edge(len(self.G) - 1, target_partition, reward=1)
+                    self.unsafe.append([target_partition, len(self.G) - 1 ])
                     if self.policy == 'Q-learning':
-                        self.Q[len(self.G) - 1,:,target_partition] += 10
+                        self.Q[len(self.G) - 1,:,target_partition] = 0
                         self.Q[len(self.G) - 1,:] = self.Q[start_partition,:]
                         self.Q[len(self.G) - 1, :, start_partition] = self.Q[start_partition, :, start_partition]
                         self.Q[start_partition, :, len(self.G) - 1] = self.Q[start_partition, :, start_partition]
@@ -370,7 +402,7 @@ class Boss(object):
                     if self.policy == 'Q-learning':
                         self.Q[len(self.G) - 1,:] = self.Q[start_partition,:]
                         self.Q[len(self.G) - 1, :][start_partition] = self.Q[start_partition, :][target_partition] / discount
-                        self.Q[len(self.G) - 1,:][target_partition] = 0
+                        self.Q[len(self.G) - 1,:][target_partition] = tmp
                     elif self.policy == 'Planning':
                         self.graph.add_node(len(self.G) - 1)
 
