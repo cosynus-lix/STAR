@@ -47,10 +47,10 @@ if __name__ == "__main__":
     # Boss Parameters
     parser.add_argument("--boss_batch_size", default=64, type=int)
     parser.add_argument("--boss_buffer_size", default=100000, type=int)
-    parser.add_argument("--boss_buffer_min_size", default=1000, type=int)
+    parser.add_argument("--boss_buffer_min_size", default=3000, type=int)
     parser.add_argument("--boss_policy", default="Q-learning", type=str)
     parser.add_argument("--boss_discount_factor", default=0.99, type=float)
-    parser.add_argument("--boss_alpha", default=0.001, type=float)
+    parser.add_argument("--boss_alpha", default=0.01, type=float)
     parser.add_argument("--reach_algo", default="Ai2", type=str)
     parser.add_argument("--boss_eps", default=0.99, type=int)
     parser.add_argument("--boss_eps_min", default=0.01, type=int)
