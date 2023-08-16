@@ -934,6 +934,9 @@ def run_gara(args):
                     manager_transition[5] = float(True)
                     manager_buffer.add(manager_transition)
 
+            if total_timesteps > 0:
+                boss_policy.policy_update(start_partition_idx, target_partition_idx, reached_partition_idx, boss_reward, done, goal, args.boss_discount_factor, args.boss_alpha)
+            
             obs = env.reset()
             goal = obs["desired_goal"]
             goal_partition = boss_policy.identify_partition(goal)
@@ -951,8 +954,6 @@ def run_gara(args):
             just_loaded = False
             episode_num += 1
             
-            epsilon *= args.boss_eps_decay
-            epsilon = max(epsilon, args.boss_eps_min)
             target_partition_idx = boss_policy.select_partition(start_partition_idx, epsilon=0, goal=goal)
             if target_partition_idx == goal_partition:
                 target_partition_interval = utils.ndInterval(2, inf=[goal[0]-1, goal[1]-1], sup=[goal[0]+1, goal[1]+1])
@@ -1039,6 +1040,10 @@ def run_gara(args):
             start_partition_idx = boss_policy.identify_partition(state)
             start_partition = np.array(boss_policy.G[start_partition_idx].inf + boss_policy.G[start_partition_idx].sup)
             
+
+            # epsilon *= args.boss_eps_decay
+            epsilon -= 9e-7
+            epsilon = max(epsilon, args.boss_eps_min)
             target_partition_idx = boss_policy.select_partition(start_partition_idx, epsilon, goal)
             if target_partition_idx == goal_partition:
                 target_partition_interval = utils.ndInterval(2, inf=[goal[0]-1, goal[1]-1], sup=[goal[0]+1, goal[1]+1])
