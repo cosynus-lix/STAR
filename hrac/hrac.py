@@ -105,7 +105,7 @@ def boltzmann_policy(Q, temperature, nA, goal=None):
 
 class Boss(object):
 
-    def __init__(self, state_dim, goal_dim, G_init, policy, reachability_algorithm, mem_capacity=1e5):
+    def __init__(self, state_dim, goal_dim, G_init, policy, reachability_algorithm, goal_cond=True, mem_capacity=1e5):
         self.G = G_init
         self.reachability_algorithm = reachability_algorithm
         self.state_dim = state_dim
@@ -117,8 +117,10 @@ class Boss(object):
             self.automaton.add_node(i)
 
         if self.policy == 'Q-learning':
-            # self.Q = defaultdict(lambda: np.zeros(len(self.G)))
-            self.Q = np.zeros((len(self.G), len(self.G), len(self.G)))
+            if goal_cond:
+                self.Q = np.zeros((len(self.G), len(self.G), len(self.G)))                
+            else:
+                self.Q = defaultdict(lambda: np.zeros(len(self.G)))
         elif self.policy == 'Planning':
             self.graph = copy.deepcopy(self.automaton)
 
@@ -412,16 +414,15 @@ class Boss(object):
                 # self.build_graph(replay_buffer)
 
                 
-    def train(self, forward_model, goal, transition_list, min_steps, batch_size=100, replay_buffer=[]):
-        goal_partition = self.identify_partition(goal)
+    def train(self, forward_model, goal, transition_list, min_steps, batch_size=100, replay_buffer=[]):     
+        # goal_partition = self.identify_partition(goal)
         for goal_pair in transition_list:
              if goal_pair not in self.automaton.edges() \
                 and goal_pair not in self.unsafe \
                 and self.high_steps[(goal_pair[0], 
                                      goal_pair[1])] > min_steps \
-                and not nx.has_path(self.automaton, source=goal_pair[0], target=goal_partition) \
                 and goal_pair[0] != goal_pair[1] :
-                # and goal_pair[1] not in [7, 8, 9]: # to remove later !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                # and not nx.has_path(self.automaton, source=goal_pair[0], target=goal_partition) \
                 
                 self.split(forward_model, start_partition=goal_pair[0], target_partition=goal_pair[1], replay_buffer=replay_buffer)
 

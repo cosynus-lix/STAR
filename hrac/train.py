@@ -90,17 +90,20 @@ def evaluate_policy_gara(env, env_name, grid, boss_policy, manager_policy, contr
     resolution = 24
     g_low = [-4, -4]
     g_high = [20, 20]
-    print(boss_policy.Q[:,3,:])
+    # print(boss_policy.Q[:,3,:])
     with torch.no_grad():
         avg_reward = 0.
-        avg_reward_manager = [0]*len(boss_policy.G)
         avg_controller_rew = 0.
         global_steps = 0
         goals_achieved = 0
         for eval_ep in range(eval_episodes):
             obs = env.reset()
             goal = obs["desired_goal"]
-            goal_partition = boss_policy.identify_partition(goal)
+            if goal is not None:
+                goal_partition = boss_policy.identify_partition(goal)
+            else:
+                goal_partition = None
+
             state = obs["observation"]
             start_state = state
             start_partition_idx = boss_policy.identify_partition(state)
@@ -113,7 +116,7 @@ def evaluate_policy_gara(env, env_name, grid, boss_policy, manager_policy, contr
                     start_partition_idx = boss_policy.identify_partition(state)
                     start_partition = np.array(boss_policy.G[start_partition_idx].inf + boss_policy.G[start_partition_idx].sup)
                     target_partition_idx = boss_policy.select_partition(start_partition_idx, epsilon=0, goal=goal)
-                    if target_partition_idx == goal_partition:
+                    if target_partition_idx == goal_partition :
                         target_partition_interval = utils.ndInterval(2, inf=[goal[0]-1, goal[1]-1], sup=[goal[0]+1, goal[1]+1])
                     else:
                         target_partition_interval = boss_policy.G[target_partition_idx]
@@ -721,23 +724,13 @@ def run_gara(args):
     state_dim = state.shape[0]
     if args.env_name in ["AntMaze", "AntPush", "AntFall"]:
         goal_dim = goal.shape[0]
+        goal_cond = True
     else:
-        goal_dim = 0
+        goal_dim = args.boss_region_dim
+        goal_cond = False
 
     g_low = [-4, -4]
     g_high = [20, 20]
-    
-    # G_init = [utils.ndInterval(goal_dim, inf=[-1,-1], sup=[8,8]),
-    #           utils.ndInterval(goal_dim, inf=[8,-1], sup=[16,8]),
-    #           utils.ndInterval(goal_dim, inf=[16,-1], sup=[20,8]),
-    #           utils.ndInterval(goal_dim, inf=[16,8], sup=[20,16]),
-    #           utils.ndInterval(goal_dim, inf=[16,16], sup=[20,20]),
-    #           utils.ndInterval(goal_dim, inf=[8,16], sup=[16,20]),
-    #           utils.ndInterval(goal_dim, inf=[-1,16], sup=[8,20]),
-    #           utils.ndInterval(goal_dim, inf=[-1,-3], sup=[20,-1]),
-    #           utils.ndInterval(goal_dim, inf=[-1,8], sup=[16,16]),
-    #           utils.ndInterval(goal_dim, inf=[-4,-4], sup=[-1,20])
-    #           ]
 
     G_init = [utils.ndInterval(goal_dim, inf=[-4,-4], sup=[8,8]),
               utils.ndInterval(goal_dim, inf=[8,-4], sup=[20,8]),
@@ -754,6 +747,7 @@ def run_gara(args):
         goal_dim=goal_dim,
         policy=args.boss_policy,
         reachability_algorithm=args.reach_algo,
+        goal_cond=goal_cond,
         mem_capacity=args.boss_batch_size)
     
     controller_policy = hrac.Controller(
@@ -939,7 +933,10 @@ def run_gara(args):
             
             obs = env.reset()
             goal = obs["desired_goal"]
-            goal_partition = boss_policy.identify_partition(goal)
+            if goal_cond :
+                goal_partition = boss_policy.identify_partition(goal)
+            else:
+                goal_partition = None
 
             transition_list = []
             state = obs["observation"]
@@ -955,7 +952,7 @@ def run_gara(args):
             episode_num += 1
             
             target_partition_idx = boss_policy.select_partition(start_partition_idx, epsilon=0, goal=goal)
-            if target_partition_idx == goal_partition:
+            if target_partition_idx == goal_partition and goal_cond:
                 target_partition_interval = utils.ndInterval(2, inf=[goal[0]-1, goal[1]-1], sup=[goal[0]+1, goal[1]+1])
             else:
                 target_partition_interval = boss_policy.G[target_partition_idx]
@@ -963,7 +960,6 @@ def run_gara(args):
             prev_target_partition_idx = target_partition_idx
             prev_target_partition = target_partition
 
-            # subgoal = manager_policy.sample_goal(state, np.concatenate((target_partition, goal)))
             subgoal = manager_policy.sample_goal(state, target_partition)
 
             if not args.absolute_goal:
@@ -974,7 +970,6 @@ def run_gara(args):
                     min_action=np.zeros(controller_goal_dim), max_action=2*man_scale[:controller_goal_dim])
 
             timesteps_since_subgoal = 0
-            # manager_transition = [state, None, np.concatenate((target_partition, goal)), subgoal, 0, False, [state], []]
             manager_transition = [state, None, target_partition, subgoal, 0, False, [state], []]
 
         action = controller_policy.select_action(state, subgoal)
@@ -987,7 +982,7 @@ def run_gara(args):
         next_state = next_tup["observation"]
 
         controller_reward = calculate_controller_reward(state, subgoal, next_state, args.ctrl_rew_scale)
-        manager_reward = 4 * get_manager_reward(next_state[:2], target_partition_interval)
+        manager_reward = 20 * get_manager_reward(next_state[:2], target_partition_interval) + ext_reward
         boss_reward = max(ext_reward, boss_reward)
 
         reached_partition_idx = boss_policy.identify_partition(state)
@@ -1042,7 +1037,7 @@ def run_gara(args):
             
 
             # epsilon *= args.boss_eps_decay
-            epsilon -= 9e-7
+            epsilon -= 9e-7 * 2
             epsilon = max(epsilon, args.boss_eps_min)
             target_partition_idx = boss_policy.select_partition(start_partition_idx, epsilon, goal)
             if target_partition_idx == goal_partition:
@@ -1430,7 +1425,7 @@ def run_handcrafted(args):
 
         controller_reward = calculate_controller_reward(state, subgoal, next_state, args.ctrl_rew_scale)
         # manager_reward = boss_reward + 20 * get_manager_reward(next_state[:2], boss_policy.G[target_partition_idx])
-        manager_reward = 4 * get_manager_reward(next_state[:2], target_partition_interval)
+        manager_reward = get_manager_reward(next_state[:2], target_partition_interval)
         # if target_partition_idx != start_partition_idx:
         #     manager_reward = get_manager_reward(next_state[:2], target_partition_interval) #+ boss_reward 
         # else:
@@ -1438,12 +1433,12 @@ def run_handcrafted(args):
 
         reached_partition_idx = boss_policy.identify_partition(state)
         reached_partition = np.array(boss_policy.G[reached_partition_idx].inf + boss_policy.G[reached_partition_idx].sup)
-        boss_policy.policy_update(start_partition_idx, target_partition_idx, reached_partition_idx, boss_reward, done, args.boss_discount_factor, args.boss_alpha)
+        # boss_policy.policy_update(start_partition_idx, target_partition_idx, reached_partition_idx, boss_reward, done, args.boss_discount_factor, args.boss_alpha)
 
-        if transition_list and total_timesteps > args.boss_propose_freq and total_timesteps % args.boss_propose_freq != 0:
-            s = controller_buffer.storage[0][-args.boss_propose_freq - 1]
-            if reached_partition_idx == prev_target_partition_idx:
-                boss_buffer.add((s, prev_start_partition, state, reached_partition, manager_reward, boss_reward))
+        # if transition_list and total_timesteps > args.boss_propose_freq and total_timesteps % args.boss_propose_freq != 0:
+        #     s = controller_buffer.storage[0][-args.boss_propose_freq - 1]
+        #     if reached_partition_idx == prev_target_partition_idx:
+        #         boss_buffer.add((s, prev_start_partition, state, reached_partition, manager_reward, boss_reward))
 
         manager_transition[4] += manager_reward * args.man_rew_scale
         manager_transition[-1].append(action)
@@ -1481,7 +1476,7 @@ def run_handcrafted(args):
             prev_target_partition = target_partition
             epsilon *= args.boss_eps_decay
             epsilon = max(epsilon, args.boss_eps_min)
-            boss_buffer.add((start_state, start_partition, state, reached_partition, manager_reward, boss_reward))
+            # boss_buffer.add((start_state, start_partition, state, reached_partition, manager_reward, boss_reward))
             start_state = state
             start_partition_idx = boss_policy.identify_partition(state)
             start_partition = np.array(boss_policy.G[start_partition_idx].inf + boss_policy.G[start_partition_idx].sup)
