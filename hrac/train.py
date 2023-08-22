@@ -82,7 +82,7 @@ def evaluate_policy(env, env_name, manager_policy, controller_policy,
         env.evaluate = False
         return avg_reward, avg_controller_rew, avg_step_count, avg_env_finish
 
-def evaluate_policy_gara(env, env_name, grid, boss_policy, manager_policy, controller_policy,
+def evaluate_policy_gara(env, env_name, goal_dim, grid, boss_policy, manager_policy, controller_policy,
                     calculate_controller_reward, ctrl_rew_scale, boss_propose_frequency=50,
                     manager_propose_frequency=10, eval_idx=0, eval_episodes=5):
     print("Starting evaluation number {}...".format(eval_idx))
@@ -100,7 +100,7 @@ def evaluate_policy_gara(env, env_name, grid, boss_policy, manager_policy, contr
             obs = env.reset()
             goal = obs["desired_goal"]
             if goal is not None:
-                goal_partition = boss_policy.identify_partition(goal)
+                goal_partition = boss_policy.identify_goal(goal)
             else:
                 goal_partition = None
 
@@ -116,7 +116,7 @@ def evaluate_policy_gara(env, env_name, grid, boss_policy, manager_policy, contr
                     start_partition_idx = boss_policy.identify_partition(state)
                     start_partition = np.array(boss_policy.G[start_partition_idx].inf + boss_policy.G[start_partition_idx].sup)
                     target_partition_idx = boss_policy.select_partition(start_partition_idx, epsilon=0, goal=goal)
-                    if target_partition_idx == goal_partition :
+                    if target_partition_idx == goal_partition and goal_dim == goal.shape[0]:
                         target_partition_interval = utils.ndInterval(2, inf=[goal[0]-1, goal[1]-1], sup=[goal[0]+1, goal[1]+1])
                     else:
                         target_partition_interval = boss_policy.G[target_partition_idx]
@@ -696,6 +696,9 @@ def run_gara(args):
         controller_goal_dim = 3
     else:
         controller_goal_dim = 2
+        controller_goal_dim = 4
+
+
     if args.absolute_goal:
         man_scale[0] = 30
         man_scale[1] = 30
@@ -724,6 +727,7 @@ def run_gara(args):
     state_dim = state.shape[0]
     if args.env_name in ["AntMaze", "AntPush", "AntFall"]:
         goal_dim = goal.shape[0]
+        goal_dim = 4
         goal_cond = True
     else:
         goal_dim = args.boss_region_dim
@@ -732,10 +736,16 @@ def run_gara(args):
     g_low = [-4, -4]
     g_high = [20, 20]
 
-    G_init = [utils.ndInterval(goal_dim, inf=[-4,-4], sup=[8,8]),
-              utils.ndInterval(goal_dim, inf=[8,-4], sup=[20,8]),
-              utils.ndInterval(goal_dim, inf=[8,8], sup=[20,20]),
-              utils.ndInterval(goal_dim, inf=[0,8], sup=[8,20])
+    # G_init = [utils.ndInterval(goal_dim, inf=[-4,-4], sup=[8,8]),
+    #           utils.ndInterval(goal_dim, inf=[8,-4], sup=[20,8]),
+    #           utils.ndInterval(goal_dim, inf=[8,8], sup=[20,20]),
+    #           utils.ndInterval(goal_dim, inf=[0,8], sup=[8,20])
+    #           ]
+    
+    G_init = [utils.ndInterval(goal_dim, inf=[-4,-4]+list(low[2:4]), sup=[8,8]+list(high[2:4])),
+              utils.ndInterval(goal_dim, inf=[8,-4]+list(low[2:4]), sup=[20,8]+list(high[2:4])),
+              utils.ndInterval(goal_dim, inf=[8,8]+list(low[2:4]), sup=[20,20]+list(high[2:4])),
+              utils.ndInterval(goal_dim, inf=[0,8]+list(low[2:4]), sup=[8,20]+list(high[2:4]))
               ]
     
     resolution = 24
@@ -895,7 +905,7 @@ def run_gara(args):
                 # Evaluate
                 if timesteps_since_eval >= args.eval_freq:
                     timesteps_since_eval = 0
-                    avg_ep_rew, avg_controller_rew, avg_steps, avg_env_finish, grid = evaluate_policy_gara(env, args.env_name, grid, boss_policy, manager_policy, controller_policy,
+                    avg_ep_rew, avg_controller_rew, avg_steps, avg_env_finish, grid = evaluate_policy_gara(env, args.env_name, goal_dim, grid, boss_policy, manager_policy, controller_policy,
                             calculate_controller_reward, args.ctrl_rew_scale, args.boss_propose_freq, args.manager_propose_freq,
                             len(evaluations))
                     utils.manager_mapping(grid, g_low, g_high, 'manager_gara_mapping.png')
@@ -933,8 +943,8 @@ def run_gara(args):
             
             obs = env.reset()
             goal = obs["desired_goal"]
-            if goal_cond :
-                goal_partition = boss_policy.identify_partition(goal)
+            if goal_cond:
+                goal_partition = boss_policy.identify_goal(goal)
             else:
                 goal_partition = None
 
@@ -952,7 +962,7 @@ def run_gara(args):
             episode_num += 1
             
             target_partition_idx = boss_policy.select_partition(start_partition_idx, epsilon=0, goal=goal)
-            if target_partition_idx == goal_partition and goal_cond:
+            if target_partition_idx == goal_partition and goal_dim == goal.shape[0]:
                 target_partition_interval = utils.ndInterval(2, inf=[goal[0]-1, goal[1]-1], sup=[goal[0]+1, goal[1]+1])
             else:
                 target_partition_interval = boss_policy.G[target_partition_idx]
@@ -1040,7 +1050,7 @@ def run_gara(args):
             epsilon -= 9e-7 * 2
             epsilon = max(epsilon, args.boss_eps_min)
             target_partition_idx = boss_policy.select_partition(start_partition_idx, epsilon, goal)
-            if target_partition_idx == goal_partition:
+            if target_partition_idx == goal_partition and goal_dim == goal.shape[0]:
                 target_partition_interval = utils.ndInterval(2, inf=[goal[0]-1, goal[1]-1], sup=[goal[0]+1, goal[1]+1])
             else:
                 target_partition_interval = boss_policy.G[target_partition_idx]
@@ -1072,7 +1082,7 @@ def run_gara(args):
 
     # Final evaluation
     avg_ep_rew, avg_controller_rew, avg_steps, avg_env_finish, grid = evaluate_policy_gara(
-        env, args.env_name, grid, boss_policy, manager_policy, controller_policy, calculate_controller_reward,
+        env, args.env_name, goal_dim, grid, boss_policy, manager_policy, controller_policy, calculate_controller_reward,
         args.ctrl_rew_scale, args.boss_propose_freq, args.manager_propose_freq, len(evaluations))
     utils.manager_mapping(grid, g_low, g_high, 'manager_gara_mapping.png')
     evaluations.append([avg_ep_rew, avg_controller_rew, avg_steps])
@@ -1375,7 +1385,7 @@ def run_handcrafted(args):
 
             obs = env.reset()
             goal = obs["desired_goal"]
-            goal_partition = boss_policy.identify_partition(goal)
+            goal_partition = boss_policy.identify_goal(goal)
 
             transition_list = []
             state = obs["observation"]

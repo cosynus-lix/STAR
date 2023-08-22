@@ -127,10 +127,18 @@ class Boss(object):
         self.total_steps = defaultdict(lambda: 0)
         self.high_steps = defaultdict(lambda: 0)
         self.unsafe = []
-        
+    
+    def identify_goal(self, goal):
+        i = None
+        for i in range(len(self.G)):
+            G = self.G[i]
+            if G.inf[0] < goal[0] < G.sup[0] and G.inf[1] < goal[1] < G.sup[1]:
+                return i
 
     def identify_partition(self, state):
         """Identify the partition of the state"""
+        if state.shape[0] > self.goal_dim:
+            state = state[:self.goal_dim]
         start_partition = 0
         for i in range(len(self.G)):
             if state in self.G[i]:
@@ -141,7 +149,7 @@ class Boss(object):
 
     def select_partition(self, start_partition, epsilon, goal=None):
         if goal is not None:
-            goal = self.identify_partition(goal)
+            goal = self.identify_goal(goal)
 
         if self.policy == 'Q-learning':
             partition = self.Q_learning_policy(start_partition, goal, epsilon)
@@ -153,7 +161,7 @@ class Boss(object):
 
     def policy_update(self, start_partition, target_partition, reached_partition, reward, done, goal= None, discount=0.99, alpha=0.5):
         if goal is not None:
-            goal = self.identify_partition(goal)
+            goal = self.identify_goal(goal)
         if self.policy == 'Q-learning':
             self.Q_learning_update(start_partition, target_partition, reached_partition, reward, done, discount, alpha, goal)
         elif self.policy == 'Planning':
@@ -189,7 +197,7 @@ class Boss(object):
         successors = list(self.graph.successors(start_partition))
         
         # if p > epsilon:         
-        partition = self.identify_partition(goal)
+        partition = self.identify_goal(goal)
         if prev_partition is not None and prev_partition in successors:
             successors.remove(prev_partition)
         if start_partition in successors and start_partition != partition:
