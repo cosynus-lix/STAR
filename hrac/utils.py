@@ -404,7 +404,7 @@ def train_forward_model(forward_model, partition_buffer, Gs=None, Gt=None, n_epo
     forward_model.fit(x, gt, y, n_epochs=n_epochs, verbose=verbose)
 
 def train_adj_net(a_net, states, adj_mat, optimizer, margin_pos, margin_neg,
-                  n_epochs=100, batch_size=64, devipce='cpu', verbose=False):
+                  n_epochs=100, batch_size=64, device='cpu', verbose=False):
     if verbose:
         print('Generating training data...')
     dataset = MetricDataset(states, adj_mat)

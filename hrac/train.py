@@ -383,7 +383,8 @@ def run_hrac(args):
     if args.env_name == "AntFall":
         controller_goal_dim = 3
     else:
-        controller_goal_dim = 2
+        # controller_goal_dim = 2
+        controller_goal_dim = 6
     if args.absolute_goal:
         man_scale[0] = 30
         man_scale[1] = 30
@@ -415,6 +416,8 @@ def run_hrac(args):
     else:
         goal_dim = 0
 
+    states_l = state
+    states_u = state
     
     controller_policy = hrac.Controller(
         state_dim=state_dim,
@@ -460,7 +463,8 @@ def run_hrac(args):
     n_states = 0
     state_list = []
     state_dict = {}
-    adj_mat = np.diag(np.ones(1500, dtype=np.uint8))
+    # adj_mat = np.diag(np.ones(1500, dtype=np.uint8))
+    adj_mat = np.diag(np.ones(5000, dtype=np.uint8))
     traj_buffer = utils.TrajectoryBuffer(capacity=args.traj_buffer_size)
     a_net = ANet(controller_goal_dim, args.r_hidden_dim, args.r_embedding_dim)
     if args.load_adj_net:
@@ -613,7 +617,7 @@ def run_hrac(args):
 
         controller_buffer.add(
             (state, next_state, controller_goal, action, controller_reward, float(ctrl_done), [], []))
-
+        
         state = next_state
         goal = next_goal
 
@@ -622,6 +626,9 @@ def run_hrac(args):
         timesteps_since_eval += 1
         timesteps_since_manager += 1
         timesteps_since_subgoal += 1
+
+        states_l = np.min((state, states_l), axis=0)
+        states_u = np.max((state, states_u), axis=0)
 
         if timesteps_since_subgoal % args.manager_propose_freq == 0:
             manager_transition[1] = state
@@ -660,6 +667,10 @@ def run_hrac(args):
 
     output_df = pd.DataFrame(output_data)
     output_df.to_csv(os.path.join("./results", file_name+".csv"), float_format="%.4f", index=False)
+    l_bound = pd.DataFrame(states_l)
+    l_bound.to_csv(os.path.join("./results", "states_l"+".csv"), float_format="%.4f", index=False)
+    u_bound = pd.DataFrame(states_u)
+    u_bound.to_csv(os.path.join("./results", "states_u"+".csv"), float_format="%.4f", index=False)
     print("Training finished.")
 
 def run_gara(args):
