@@ -280,6 +280,12 @@ def get_reward_function(dims, absolute_goal=False, binary_reward=False):
             next_z = next_z[:dims]
             reward = float(np.linalg.norm(z + subgoal - next_z, axis=-1) <= 1.414) * scale
             return reward
+    elif type(dims) == list:
+        def controller_reward(z, subgoal, next_z, scale):
+            z = z[dims]
+            next_z = next_z[dims]
+            reward = -np.linalg.norm(z + subgoal - next_z, axis=-1) * scale
+            return reward
     else:
         def controller_reward(z, subgoal, next_z, scale):
             z = z[:dims]
@@ -302,12 +308,16 @@ def get_manager_reward(subgoal, target_partition):
     return reward
 
 def update_amat_and_train_anet(n_states, adj_mat, state_list, state_dict, a_net, traj_buffer,
-        optimizer_r, controller_goal_dim, device, args):
+        optimizer_r, controller_goal_dim, device, args, state_dims=None):
     for traj in traj_buffer.get_trajectory():
         for i in range(len(traj)):
             for j in range(1, min(args.manager_propose_freq, len(traj) - i)):
-                s1 = tuple(np.round(traj[i][:controller_goal_dim]).astype(np.int32))
-                s2 = tuple(np.round(traj[i+j][:controller_goal_dim]).astype(np.int32))
+                if state_dims:
+                    s1 = tuple(np.round(traj[i][state_dims]).astype(np.int32))
+                    s2 = tuple(np.round(traj[i+j][state_dims]).astype(np.int32))
+                else:
+                    s1 = tuple(np.round(traj[i][:controller_goal_dim]).astype(np.int32))
+                    s2 = tuple(np.round(traj[i+j][:controller_goal_dim]).astype(np.int32))
                 if s1 not in state_list:
                     state_list.append(s1)
                     state_dict[s1] = n_states
@@ -373,18 +383,33 @@ def run_hrac(args):
     else:
         raise NotImplementedError
 
-    low = np.array((-10, -10, -0.5, -1, -1, -1, -1,
+    state_dims = [0,1,15,16]
+    if state_dims:
+        low = np.array((-10, -10, -0.5, -1, -1, -1, -1,
+                -0.5, -0.3, -0.5, -0.3, -0.5, -0.3, -0.5, -0.3,-5,-5,-5,
+                -8,-8,-7,-8,-7,-8,-9,-8,-9,-8,-7,0.0000))
+    else:
+        low = np.array((-10, -10, -0.5, -1, -1, -1, -1,
                     -0.5, -0.3, -0.5, -0.3, -0.5, -0.3, -0.5, -0.3))
+    
+    
     max_action = float(env.action_space.high[0])
     policy_noise = 0.2
     noise_clip = 0.5
     high = -low
     man_scale = (high - low) / 2
-    if args.env_name == "AntFall":
+    if state_dims:
+        new_man_scale = man_scale[state_dims]   
+    else:
+        new_man_scale = man_scale 
+
+    if state_dims:
+        controller_goal_dim = len(state_dims)
+    elif args.env_name == "AntFall":
         controller_goal_dim = 3
     else:
-        # controller_goal_dim = 2
-        controller_goal_dim = 6
+        controller_goal_dim = 2
+        
     if args.absolute_goal:
         man_scale[0] = 30
         man_scale[1] = 30
@@ -440,7 +465,7 @@ def run_hrac(args):
         critic_lr=args.man_crit_lr,
         candidate_goals=args.candidate_goals,
         correction=not args.no_correction,
-        scale=man_scale,
+        scale=new_man_scale,
         goal_loss_coeff=args.goal_loss_coeff,
         absolute_goal=args.absolute_goal
     )
@@ -559,7 +584,7 @@ def run_hrac(args):
 
                 if traj_buffer.full():
                      n_states = update_amat_and_train_anet(n_states, adj_mat, state_list, state_dict, a_net, traj_buffer,
-                        optimizer_r, controller_goal_dim, device, args)
+                        optimizer_r, controller_goal_dim, device, args, state_dims)
 
                 if len(manager_transition[-2]) != 1:                    
                     manager_transition[1] = state
@@ -579,10 +604,16 @@ def run_hrac(args):
 
             subgoal = manager_policy.sample_goal(state, goal)
             
-            if not args.absolute_goal:
+            if not args.absolute_goal and state_dims:
+                subgoal = man_noise.perturb_action(subgoal,
+                    min_action=-man_scale[state_dims], max_action=man_scale[state_dims])
+            elif not args.absolute_goal and not state_dims:
                 subgoal = man_noise.perturb_action(subgoal,
                     min_action=-man_scale[:controller_goal_dim], max_action=man_scale[:controller_goal_dim])
-            else:
+            elif args.absolute_goal and state_dims:
+                subgoal = man_noise.perturb_action(subgoal,
+                    min_action=np.zeros(controller_goal_dim), max_action=2*man_scale[state_dims])
+            else: 
                 subgoal = man_noise.perturb_action(subgoal,
                     min_action=np.zeros(controller_goal_dim), max_action=2*man_scale[:controller_goal_dim])
 
@@ -637,10 +668,16 @@ def run_hrac(args):
             manager_buffer.add(manager_transition)
             subgoal = manager_policy.sample_goal(state, goal)
 
-            if not args.absolute_goal:
+            if not args.absolute_goal and state_dims:
+                subgoal = man_noise.perturb_action(subgoal,
+                    min_action=-man_scale[state_dims], max_action=man_scale[state_dims])
+            elif not args.absolute_goal and not state_dims:
                 subgoal = man_noise.perturb_action(subgoal,
                     min_action=-man_scale[:controller_goal_dim], max_action=man_scale[:controller_goal_dim])
-            else:
+            elif args.absolute_goal and state_dims:
+                subgoal = man_noise.perturb_action(subgoal,
+                    min_action=np.zeros(controller_goal_dim), max_action=2*man_scale[state_dims])
+            else: 
                 subgoal = man_noise.perturb_action(subgoal,
                     min_action=np.zeros(controller_goal_dim), max_action=2*man_scale[:controller_goal_dim])
 
@@ -695,20 +732,30 @@ def run_gara(args):
     else:
         raise NotImplementedError
 
+    state_dims = [0,1,15,16]
     low = np.array((-10, -10, -0.5, -1, -1, -1, -1,
                     -0.5, -0.3, -0.5, -0.3, -0.5, -0.3, -0.5, -0.3))
     max_action = float(env.action_space.high[0])
     policy_noise = 0.2
     noise_clip = 0.5
     high = -low
+
+    states_l = [-3.7176,-3.7552,0.1953,-1.0000,-1.0000,-0.9999,-1.0000,-0.6678,-0.0401,
+                -0.6697,-1.3437,-0.6685,-1.3617,-0.6686,-0.0631,-3.3088,-3.4607,-4.1534,
+                -7.6646,-7.0017,-6.1895,-7.5772,-6.4212,-7.5685,-8.5579,-7.8404,-8.7354,
+                -7.6024,-6.4873,0.0000]
+    states_u = [19.7401,19.6543,1.4643,1.0000,0.9999,1.0000,1.0000,0.6678,1.3581,0.6700,
+                0.0242,0.6691,-0.0731,0.6688,1.3509,4.3832,4.1235,3.4336,7.2213,7.9924,
+                6.4985,7.5746,8.6797,7.6234,6.4633,7.5982,6.5171,7.5805,8.7180,0.5000]
+
     man_scale = (high - low) / 2
     epsilon = args.boss_eps
     if args.env_name == "AntFall":
         controller_goal_dim = 3
+    elif state_dims:
+        controller_goal_dim = len(state_dims)
     else:
         controller_goal_dim = 2
-        controller_goal_dim = 4
-
 
     if args.absolute_goal:
         man_scale[0] = 30
@@ -736,9 +783,11 @@ def run_gara(args):
     torch.backends.cudnn.benchmark = False
 
     state_dim = state.shape[0]
-    if args.env_name in ["AntMaze", "AntPush", "AntFall"]:
+    if args.env_name in ["AntMaze", "AntPush", "AntFall"] and not state_dims:
         goal_dim = goal.shape[0]
-        goal_dim = 4
+        goal_cond = True
+    elif state_dims:
+        goal_dim = len(state_dims)
         goal_cond = True
     else:
         goal_dim = args.boss_region_dim
@@ -753,10 +802,10 @@ def run_gara(args):
     #           utils.ndInterval(goal_dim, inf=[0,8], sup=[8,20])
     #           ]
     
-    G_init = [utils.ndInterval(goal_dim, inf=[-4,-4]+list(low[2:4]), sup=[8,8]+list(high[2:4])),
-              utils.ndInterval(goal_dim, inf=[8,-4]+list(low[2:4]), sup=[20,8]+list(high[2:4])),
-              utils.ndInterval(goal_dim, inf=[8,8]+list(low[2:4]), sup=[20,20]+list(high[2:4])),
-              utils.ndInterval(goal_dim, inf=[0,8]+list(low[2:4]), sup=[8,20]+list(high[2:4]))
+    G_init = [utils.ndInterval(goal_dim, inf=[-4,-4]+states_l[2:4], sup=[8,8]+states_u[2:4]),
+              utils.ndInterval(goal_dim, inf=[8,-4]+states_l[2:4], sup=[20,8]+states_u[2:4]),
+              utils.ndInterval(goal_dim, inf=[8,8]+states_l[2:4], sup=[20,20]+states_u[2:4]),
+              utils.ndInterval(goal_dim, inf=[0,8]+states_l[2:4], sup=[8,20]+states_u[2:4])
               ]
     
     resolution = 24
@@ -798,9 +847,12 @@ def run_gara(args):
         partitions=True
     )
 
-    calculate_controller_reward = get_reward_function(
-        controller_goal_dim, absolute_goal=args.absolute_goal, binary_reward=args.binary_int_reward)
-
+    if state_dims:
+        calculate_controller_reward = get_reward_function(
+            state_dims, absolute_goal=args.absolute_goal, binary_reward=args.binary_int_reward)
+    else:
+        calculate_controller_reward = get_reward_function(
+            controller_goal_dim, absolute_goal=args.absolute_goal, binary_reward=args.binary_int_reward)
     if args.noise_type == "ou":
         man_noise = utils.OUNoise(state_dim, sigma=args.man_noise_sigma)
         ctrl_noise = utils.OUNoise(action_dim, sigma=args.ctrl_noise_sigma)
@@ -983,10 +1035,16 @@ def run_gara(args):
 
             subgoal = manager_policy.sample_goal(state, target_partition)
 
-            if not args.absolute_goal:
+            if not args.absolute_goal and state_dims:
+                subgoal = man_noise.perturb_action(subgoal,
+                    min_action=-man_scale[state_dims], max_action=man_scale[state_dims])
+            elif not args.absolute_goal and not state_dims:
                 subgoal = man_noise.perturb_action(subgoal,
                     min_action=-man_scale[:controller_goal_dim], max_action=man_scale[:controller_goal_dim])
-            else:
+            elif args.absolute_goal and state_dims:
+                subgoal = man_noise.perturb_action(subgoal,
+                    min_action=np.zeros(controller_goal_dim), max_action=2*man_scale[state_dims])
+            else: 
                 subgoal = man_noise.perturb_action(subgoal,
                     min_action=np.zeros(controller_goal_dim), max_action=2*man_scale[:controller_goal_dim])
 
@@ -1080,10 +1138,16 @@ def run_gara(args):
             # subgoal = manager_policy.sample_goal(state, np.concatenate((target_partition, goal)))
             subgoal = manager_policy.sample_goal(state, target_partition)
 
-            if not args.absolute_goal:
+            if not args.absolute_goal and state_dims:
+                subgoal = man_noise.perturb_action(subgoal,
+                    min_action=-man_scale[state_dims], max_action=man_scale[state_dims])
+            elif not args.absolute_goal and not state_dims:
                 subgoal = man_noise.perturb_action(subgoal,
                     min_action=-man_scale[:controller_goal_dim], max_action=man_scale[:controller_goal_dim])
-            else:
+            elif args.absolute_goal and state_dims:
+                subgoal = man_noise.perturb_action(subgoal,
+                    min_action=np.zeros(controller_goal_dim), max_action=2*man_scale[state_dims])
+            else: 
                 subgoal = man_noise.perturb_action(subgoal,
                     min_action=np.zeros(controller_goal_dim), max_action=2*man_scale[:controller_goal_dim])
 
