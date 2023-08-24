@@ -470,8 +470,12 @@ def run_hrac(args):
         absolute_goal=args.absolute_goal
     )
 
-    calculate_controller_reward = get_reward_function(
-        controller_goal_dim, absolute_goal=args.absolute_goal, binary_reward=args.binary_int_reward)
+    if state_dims:
+        calculate_controller_reward = get_reward_function(
+            state_dims, absolute_goal=args.absolute_goal, binary_reward=args.binary_int_reward)
+    else:
+        calculate_controller_reward = get_reward_function(
+            controller_goal_dim, absolute_goal=args.absolute_goal, binary_reward=args.binary_int_reward)
 
     if args.noise_type == "ou":
         man_noise = utils.OUNoise(state_dim, sigma=args.man_noise_sigma)
@@ -733,27 +737,39 @@ def run_gara(args):
         raise NotImplementedError
 
     state_dims = [0,1,15,16]
-    low = np.array((-10, -10, -0.5, -1, -1, -1, -1,
+    if state_dims:
+        low = np.array((-10, -10, -0.5, -1, -1, -1, -1,
+                -0.5, -0.3, -0.5, -0.3, -0.5, -0.3, -0.5, -0.3,-5,-5,-5,
+                -8,-8,-7,-8,-7,-8,-9,-8,-9,-8,-7,0.0000))
+    else:
+        low = np.array((-10, -10, -0.5, -1, -1, -1, -1,
                     -0.5, -0.3, -0.5, -0.3, -0.5, -0.3, -0.5, -0.3))
+        
     max_action = float(env.action_space.high[0])
     policy_noise = 0.2
     noise_clip = 0.5
     high = -low
 
-    states_l = [-3.7176,-3.7552,0.1953,-1.0000,-1.0000,-0.9999,-1.0000,-0.6678,-0.0401,
-                -0.6697,-1.3437,-0.6685,-1.3617,-0.6686,-0.0631,-3.3088,-3.4607,-4.1534,
-                -7.6646,-7.0017,-6.1895,-7.5772,-6.4212,-7.5685,-8.5579,-7.8404,-8.7354,
-                -7.6024,-6.4873,0.0000]
-    states_u = [19.7401,19.6543,1.4643,1.0000,0.9999,1.0000,1.0000,0.6678,1.3581,0.6700,
-                0.0242,0.6691,-0.0731,0.6688,1.3509,4.3832,4.1235,3.4336,7.2213,7.9924,
-                6.4985,7.5746,8.6797,7.6234,6.4633,7.5982,6.5171,7.5805,8.7180,0.5000]
+    # states_l = [-3.7176,-3.7552,0.1953,-1.0000,-1.0000,-0.9999,-1.0000,-0.6678,-0.0401,
+    #             -0.6697,-1.3437,-0.6685,-1.3617,-0.6686,-0.0631,-3.3088,-3.4607,-4.1534,
+    #             -7.6646,-7.0017,-6.1895,-7.5772,-6.4212,-7.5685,-8.5579,-7.8404,-8.7354,
+    #             -7.6024,-6.4873,0.0000]
+    # states_u = [19.7401,19.6543,1.4643,1.0000,0.9999,1.0000,1.0000,0.6678,1.3581,0.6700,
+    #             0.0242,0.6691,-0.0731,0.6688,1.3509,4.3832,4.1235,3.4336,7.2213,7.9924,
+    #             6.4985,7.5746,8.6797,7.6234,6.4633,7.5982,6.5171,7.5805,8.7180,0.5000]
 
     man_scale = (high - low) / 2
+    if state_dims:
+        new_man_scale = man_scale[state_dims]   
+    else:
+        new_man_scale = man_scale 
+
     epsilon = args.boss_eps
-    if args.env_name == "AntFall":
-        controller_goal_dim = 3
-    elif state_dims:
+    
+    if state_dims:
         controller_goal_dim = len(state_dims)
+    elif args.env_name == "AntFall":
+        controller_goal_dim = 3
     else:
         controller_goal_dim = 2
 
@@ -802,10 +818,16 @@ def run_gara(args):
     #           utils.ndInterval(goal_dim, inf=[0,8], sup=[8,20])
     #           ]
     
-    G_init = [utils.ndInterval(goal_dim, inf=[-4,-4]+states_l[2:4], sup=[8,8]+states_u[2:4]),
-              utils.ndInterval(goal_dim, inf=[8,-4]+states_l[2:4], sup=[20,8]+states_u[2:4]),
-              utils.ndInterval(goal_dim, inf=[8,8]+states_l[2:4], sup=[20,20]+states_u[2:4]),
-              utils.ndInterval(goal_dim, inf=[0,8]+states_l[2:4], sup=[8,20]+states_u[2:4])
+    # G_init = [utils.ndInterval(goal_dim, inf=[-4,-4]+states_l[2:4], sup=[8,8]+states_u[2:4]),
+    #           utils.ndInterval(goal_dim, inf=[8,-4]+states_l[2:4], sup=[20,8]+states_u[2:4]),
+    #           utils.ndInterval(goal_dim, inf=[8,8]+states_l[2:4], sup=[20,20]+states_u[2:4]),
+    #           utils.ndInterval(goal_dim, inf=[0,8]+states_l[2:4], sup=[8,20]+states_u[2:4])
+    #           ]
+    
+    G_init = [utils.ndInterval(goal_dim, inf=[-4,-4]+low[2:4], sup=[8,8]+high[2:4]),
+              utils.ndInterval(goal_dim, inf=[8,-4]+low[2:4], sup=[20,8]+high[2:4]),
+              utils.ndInterval(goal_dim, inf=[8,8]+low[2:4], sup=[20,20]+high[2:4]),
+              utils.ndInterval(goal_dim, inf=[0,8]+low[2:4], sup=[8,20]+high[2:4])
               ]
     
     resolution = 24
@@ -841,7 +863,7 @@ def run_gara(args):
         critic_lr=args.man_crit_lr,
         candidate_goals=args.candidate_goals,
         correction=not args.no_correction,
-        scale=man_scale,
+        scale=new_man_scale,
         goal_loss_coeff=args.goal_loss_coeff,
         absolute_goal=args.absolute_goal,
         partitions=True
@@ -853,6 +875,7 @@ def run_gara(args):
     else:
         calculate_controller_reward = get_reward_function(
             controller_goal_dim, absolute_goal=args.absolute_goal, binary_reward=args.binary_int_reward)
+        
     if args.noise_type == "ou":
         man_noise = utils.OUNoise(state_dim, sigma=args.man_noise_sigma)
         ctrl_noise = utils.OUNoise(action_dim, sigma=args.ctrl_noise_sigma)
