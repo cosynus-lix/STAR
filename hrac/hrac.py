@@ -129,11 +129,12 @@ class Boss(object):
         self.unsafe = []
     
     def identify_goal(self, goal):
-        i = None
+        i = -1
         for i in range(len(self.G)):
             G = self.G[i]
             if G.inf[0] < goal[0] < G.sup[0] and G.inf[1] < goal[1] < G.sup[1]:
-                return i
+                break
+        return i
 
     def identify_partition(self, state):
         """Identify the partition of the state"""
@@ -150,6 +151,8 @@ class Boss(object):
     def select_partition(self, start_partition, epsilon, goal=None):
         if goal is not None:
             goal = self.identify_goal(goal)
+        else:
+            print(goal)
 
         if self.policy == 'Q-learning':
             partition = self.Q_learning_policy(start_partition, goal, epsilon)
@@ -168,7 +171,7 @@ class Boss(object):
             self.planning_update(start_partition, target_partition, reached_partition, reward, done)
 
 
-    def Q_learning_policy(self, start_partition, goal=None, epsilon=1):
+    def Q_learning_policy(self, start_partition, goal, epsilon=1):
         """Epsilon-greedy policy for Q-learning"""
         Q = self.Q
         policy = make_epsilon_greedy_policy(Q, epsilon, len(self.G))
