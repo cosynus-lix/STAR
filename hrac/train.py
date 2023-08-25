@@ -83,7 +83,7 @@ def evaluate_policy(env, env_name, manager_policy, controller_policy,
         return avg_reward, avg_controller_rew, avg_step_count, avg_env_finish
 
 def evaluate_policy_gara(env, env_name, goal_dim, grid, boss_policy, manager_policy, controller_policy,
-                    calculate_controller_reward, ctrl_rew_scale, boss_propose_frequency=50,
+                    calculate_controller_reward, ctrl_rew_scale, boss_propose_frequency=30,
                     manager_propose_frequency=10, eval_idx=0, eval_episodes=5):
     print("Starting evaluation number {}...".format(eval_idx))
     env.evaluate = True
@@ -118,10 +118,11 @@ def evaluate_policy_gara(env, env_name, goal_dim, grid, boss_policy, manager_pol
                     target_partition_idx = boss_policy.select_partition(start_partition_idx, epsilon=0, goal=goal)
                     if target_partition_idx == goal_partition and goal_dim == goal.shape[0]:
                         target_partition_interval = utils.ndInterval(2, inf=[goal[0]-1, goal[1]-1], sup=[goal[0]+1, goal[1]+1])
+                    elif target_partition_idx == goal_partition and goal_dim != goal.shape[0]:
+                        target_partition_interval = utils.ndInterval(goal_dim, inf=[goal[0]-1, goal[1]-1]+boss_policy.G[goal_partition].inf[2:], sup=[goal[0]+1, goal[1]+1]+boss_policy.G[goal_partition].sup[2:])
                     else:
                         target_partition_interval = boss_policy.G[target_partition_idx]
                     target_partition = np.array(target_partition_interval.inf + target_partition_interval.sup)
-
 
                 if step_count % manager_propose_frequency == 0:
                     # subgoal = manager_policy.sample_goal(state, np.concatenate((target_partition, goal)))
@@ -148,11 +149,11 @@ def evaluate_policy_gara(env, env_name, goal_dim, grid, boss_policy, manager_pol
                 #     print("ant in part 5" + "targeting part" + str(target_partition_idx))
                 # if new_state[:2] in boss_policy.G[4] and state[:2] not in boss_policy.G[4]:
                 #     print("ant in part 4" + "targeting part" + str(target_partition_idx))
-                if new_state[:2] in boss_policy.G[3] and state[:2] not in boss_policy.G[3]:
+                if new_state[:goal_dim] in boss_policy.G[3] and state[:goal_dim] not in boss_policy.G[3]:
                     print("ant in part 3" + "targeting part" + str(target_partition_idx))
-                if new_state[:2] in boss_policy.G[2] and state[:2] not in boss_policy.G[2]:
+                if new_state[:goal_dim] in boss_policy.G[2] and state[:goal_dim] not in boss_policy.G[2]:
                     print("ant in part 2" + "targeting part" + str(target_partition_idx))
-                if new_state[:2] in boss_policy.G[1] and state[:2] not in boss_policy.G[1]:
+                if new_state[:goal_dim] in boss_policy.G[1] and state[:goal_dim] not in boss_policy.G[1]:
                     print("ant in part 1" + "targeting part" + str(target_partition_idx))
 
                 subgoal = controller_policy.subgoal_transition(state, subgoal, new_state)
@@ -1050,6 +1051,8 @@ def run_gara(args):
             target_partition_idx = boss_policy.select_partition(start_partition_idx, epsilon=0, goal=goal)
             if target_partition_idx == goal_partition and goal_dim == goal.shape[0]:
                 target_partition_interval = utils.ndInterval(2, inf=[goal[0]-1, goal[1]-1], sup=[goal[0]+1, goal[1]+1])
+            elif target_partition_idx == goal_partition and goal_dim != goal.shape[0]:
+                target_partition_interval = utils.ndInterval(goal_dim, inf=[goal[0]-1, goal[1]-1]+boss_policy.G[goal_partition].inf[2:], sup=[goal[0]+1, goal[1]+1]+boss_policy.G[goal_partition].sup[2:])
             else:
                 target_partition_interval = boss_policy.G[target_partition_idx]
             target_partition = np.array(target_partition_interval.inf + target_partition_interval.sup)
@@ -1084,7 +1087,7 @@ def run_gara(args):
         next_state = next_tup["observation"]
 
         controller_reward = calculate_controller_reward(state, subgoal, next_state, args.ctrl_rew_scale)
-        manager_reward = 20 * get_manager_reward(next_state[:2], target_partition_interval) + ext_reward
+        manager_reward = 4 * get_manager_reward(next_state[:2], target_partition_interval)
         boss_reward = max(ext_reward, boss_reward)
 
         reached_partition_idx = boss_policy.identify_partition(state)
@@ -1140,10 +1143,12 @@ def run_gara(args):
 
             # epsilon *= args.boss_eps_decay
             epsilon -= 9e-7 * 2
-            epsilon = max(epsilon, args.boss_eps_min)
+            epsilon = max(epsilon, args.boss_eps_min) 
             target_partition_idx = boss_policy.select_partition(start_partition_idx, epsilon, goal)
             if target_partition_idx == goal_partition and goal_dim == goal.shape[0]:
                 target_partition_interval = utils.ndInterval(2, inf=[goal[0]-1, goal[1]-1], sup=[goal[0]+1, goal[1]+1])
+            elif target_partition_idx == goal_partition and goal_dim != goal.shape[0]:
+                target_partition_interval = utils.ndInterval(goal_dim, inf=[goal[0]-1, goal[1]-1]+boss_policy.G[goal_partition].inf[2:], sup=[goal[0]+1, goal[1]+1]+boss_policy.G[goal_partition].sup[2:])
             else:
                 target_partition_interval = boss_policy.G[target_partition_idx]
             target_partition = np.array(target_partition_interval.inf + target_partition_interval.sup)
