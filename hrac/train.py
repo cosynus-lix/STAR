@@ -124,6 +124,13 @@ def evaluate_policy_gara(env, env_name, goal_dim, grid, boss_policy, manager_pol
                         target_partition_interval = boss_policy.G[target_partition_idx]
                     target_partition = np.array(target_partition_interval.inf + target_partition_interval.sup)
 
+                    if new_state[:goal_dim] in boss_policy.G[3] and state[:goal_dim] not in boss_policy.G[3]:
+                        print("ant in part 3" + "targeting part" + str(target_partition_idx))
+                    if new_state[:goal_dim] in boss_policy.G[2] and state[:goal_dim] not in boss_policy.G[2]:
+                        print("ant in part 2" + "targeting part" + str(target_partition_idx))
+                    if new_state[:goal_dim] in boss_policy.G[1] and state[:goal_dim] not in boss_policy.G[1]:
+                        print("ant in part 1" + "targeting part" + str(target_partition_idx))
+
                 if step_count % manager_propose_frequency == 0:
                     # subgoal = manager_policy.sample_goal(state, np.concatenate((target_partition, goal)))
                     subgoal = manager_policy.sample_goal(state, target_partition)
@@ -142,19 +149,6 @@ def evaluate_policy_gara(env, env_name, goal_dim, grid, boss_policy, manager_pol
 
                 goal = new_obs["desired_goal"]
                 new_state = new_obs["observation"]
-
-                # if new_state[:2] in boss_policy.G[6] and state[:2] not in boss_policy.G[6]:
-                #     print("ant in part 6" + "targeting part" + str(target_partition_idx))
-                # if new_state[:2] in boss_policy.G[5] and state[:2] not in boss_policy.G[5]:
-                #     print("ant in part 5" + "targeting part" + str(target_partition_idx))
-                # if new_state[:2] in boss_policy.G[4] and state[:2] not in boss_policy.G[4]:
-                #     print("ant in part 4" + "targeting part" + str(target_partition_idx))
-                if new_state[:goal_dim] in boss_policy.G[3] and state[:goal_dim] not in boss_policy.G[3]:
-                    print("ant in part 3" + "targeting part" + str(target_partition_idx))
-                if new_state[:goal_dim] in boss_policy.G[2] and state[:goal_dim] not in boss_policy.G[2]:
-                    print("ant in part 2" + "targeting part" + str(target_partition_idx))
-                if new_state[:goal_dim] in boss_policy.G[1] and state[:goal_dim] not in boss_policy.G[1]:
-                    print("ant in part 1" + "targeting part" + str(target_partition_idx))
 
                 subgoal = controller_policy.subgoal_transition(state, subgoal, new_state)
                 

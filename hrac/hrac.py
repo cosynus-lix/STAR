@@ -240,7 +240,7 @@ class Boss(object):
                     path = nx.shortest_path(self.automaton, source=node, target=start_partition)
                     exclusions += list(path)
             
-            candidates = [i for i in range(len(self.G)) if i not in exclusions]
+            candidates = [i for i in range(len(self.G)) if i not in exclusions and [i, start_partition] not in self.unsafe ]
             return candidates
         
         candidates = list(range(len(self.G)))
@@ -430,7 +430,7 @@ class Boss(object):
             self.automaton.add_edge(start_partition, target_partition, reward=1)
             self.unsafe.append([target_partition, start_partition])
             if self.policy == 'Q-learning':
-                tmp = self.Q[start_partition, :, target_partition]
+                tmp = copy.copy(self.Q[start_partition, :, target_partition])
                 self.Q[start_partition, :, target_partition] = 0
             elif self.policy == 'Planning' and (start_partition, target_partition) in self.graph.edges:
                 reward = 1 # nx.get_edge_attributes(self.graph, 'reward')[(start_partition, target_partition)]
@@ -467,8 +467,8 @@ class Boss(object):
 
                     if self.policy == 'Q-learning':
                         self.Q[len(self.G) - 1,:] = self.Q[start_partition,:]
-                        self.Q[len(self.G) - 1, :][start_partition] = self.Q[start_partition, :][target_partition] / discount
-                        self.Q[len(self.G) - 1,:][target_partition] = tmp
+                        self.Q[len(self.G) - 1, :, start_partition] = self.Q[start_partition, :, target_partition] / discount
+                        self.Q[len(self.G) - 1,:, target_partition] = tmp
                     elif self.policy == 'Planning':
                         self.graph.add_node(len(self.G) - 1)
 
