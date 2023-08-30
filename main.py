@@ -54,7 +54,7 @@ if __name__ == "__main__":
     parser.add_argument("--reach_algo", default="Ai2", type=str)
     parser.add_argument("--boss_eps", default=0.99, type=int)
     parser.add_argument("--boss_eps_min", default=0.01, type=int)
-    parser.add_argument("--boss_eps_decay", default=0.99995, type=float)
+    parser.add_argument("--boss_eps_decay", default=0.99999, type=float)
     
 
     # Manager Parameters

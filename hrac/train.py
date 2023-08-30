@@ -897,11 +897,6 @@ def run_gara(args):
     # fwd_model.to(device)
     # optimizer_fwd = optim.Adam(fwd_model.parameters(), lr=args.lr_fwd)
 
-    # Give planning to the boss
-    # for i in range(len(G_init) - 3):
-    #     boss_policy.graph.add_edge(i, i+1)
-
-
     if args.load:
         try:
             manager_policy.load("./models")

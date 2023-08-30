@@ -155,7 +155,23 @@ class Boss(object):
             print(goal)
 
         if self.policy == 'Q-learning':
-            partition = self.Q_learning_policy(start_partition, goal, epsilon)
+            # if goal > start_partition:
+            #     if start_partition == 0:
+            #         partition = 1
+            #         return partition
+            #     elif start_partition == 1:
+            #         partition = 2
+            #         return partition
+            #     elif start_partition == 2:
+            #         partition = 3
+            #         return partition
+            #     elif start_partition == 3:
+            #         partition = 3
+            #         return partition
+            if list(self.automaton.neighbors(start_partition)):
+                candidates = self.planning(start_partition, goal)
+            partition = self.Q_learning_policy(start_partition, goal, epsilon, candidates)
+            
         elif self.policy == 'Planning':
             partition = self.planning_policy(start_partition, epsilon, goal)
         
@@ -171,12 +187,18 @@ class Boss(object):
             self.planning_update(start_partition, target_partition, reached_partition, reward, done)
 
 
-    def Q_learning_policy(self, start_partition, goal, epsilon=1):
+    def Q_learning_policy(self, start_partition, goal, epsilon=1, candidates = []):
         """Epsilon-greedy policy for Q-learning"""
         Q = self.Q
         policy = make_epsilon_greedy_policy(Q, epsilon, len(self.G))
         action_probs = policy(start_partition, goal)
-        action = np.random.choice(np.arange(len(action_probs)), p=action_probs)
+        if candidates:
+            u = [i for i in range(len(self.G)) if i not in candidates]
+            unprob = np.sum(action_probs[u])
+            action_probs = action_probs[candidates] + unprob / len(candidates)
+            action = np.random.choice(candidates, p=action_probs)
+        else:
+            action = np.random.choice(np.arange(len(action_probs)), p=action_probs)
         return action
     
     def Q_learning_update(self, start_partition, target_partition, reached_partition, reward, done, discount, alpha, goal):
@@ -188,11 +210,36 @@ class Boss(object):
             td_delta = td_target - self.Q[start_partition][target_partition]
             self.Q[start_partition][target_partition] += alpha * td_delta
         else:
-            best_next_action = np.argmax(self.Q[reached_partition,goal])
-            td_target = reward + (1 - done) * discount * self.Q[reached_partition, goal][
-                best_next_action]
-            td_delta = td_target - self.Q[start_partition, goal][target_partition]
-            self.Q[start_partition, goal][target_partition] += alpha * td_delta
+            if (start_partition, target_partition) not in self.automaton:
+                best_next_action = np.argmax(self.Q[reached_partition,goal])
+                td_target = reward + (1 - done) * discount * self.Q[reached_partition, goal][
+                    best_next_action]
+                td_delta = td_target - self.Q[start_partition, goal][target_partition]
+                self.Q[start_partition, goal][target_partition] += alpha * td_delta
+
+    def planning(self, start_partition, goal):
+        """ Excludes unoptimal actions with planning """
+        regions = []
+        
+        if goal and goal == start_partition:
+            regions.append(goal)
+            return regions
+            
+        successors = list(self.automaton.successors(start_partition))
+        if successors:
+            regions += successors
+            return regions
+        
+        predecessors = list(self.automaton.predecessors(start_partition))
+        if predecessors:
+            for node in self.automaton:
+                if node not in regions and nx.has_path(self.automaton, source=node, target=start_partition):
+                    path = nx.shortest_path(self.automaton, source=node, target=start_partition)
+                    regions += list(path[:-1])
+
+            return regions
+        
+        return list(range(len(self.G)))
             
     def planning_policy(self, start_partition, epsilon=1, goal=None, prev_partition=None):
         """Selects a random partition from the graph with probability epsilon, otherwise selects a successor partition on the shortest path in the graph"""
