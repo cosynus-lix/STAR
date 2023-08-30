@@ -170,6 +170,8 @@ class Boss(object):
             #         return partition
             if list(self.automaton.neighbors(start_partition)):
                 candidates = self.planning(start_partition, goal)
+            else:
+                candidates = []
             partition = self.Q_learning_policy(start_partition, goal, epsilon, candidates)
             
         elif self.policy == 'Planning':
@@ -219,27 +221,31 @@ class Boss(object):
 
     def planning(self, start_partition, goal):
         """ Excludes unoptimal actions with planning """
-        regions = []
+        candidates = []
+        exclusions = []
         
         if goal and goal == start_partition:
-            regions.append(goal)
-            return regions
+            candidates.append(goal)
+            return candidates
             
         successors = list(self.automaton.successors(start_partition))
         if successors:
-            regions += successors
-            return regions
+            candidates += successors
+            return candidates
         
         predecessors = list(self.automaton.predecessors(start_partition))
         if predecessors:
             for node in self.automaton:
-                if node not in regions and nx.has_path(self.automaton, source=node, target=start_partition):
+                if node not in exclusions and nx.has_path(self.automaton, source=node, target=start_partition):
                     path = nx.shortest_path(self.automaton, source=node, target=start_partition)
-                    regions += list(path[:-1])
-
-            return regions
+                    exclusions += list(path[:-1])
+            
+            candidates = [i for i in range(len(self.G)) if i not in exclusions and i != goal]
+            return candidates
         
-        return list(range(len(self.G)))
+        candidates = list(range(len(self.G)))
+        candidates.remove(goal)
+        return candidates
             
     def planning_policy(self, start_partition, epsilon=1, goal=None, prev_partition=None):
         """Selects a random partition from the graph with probability epsilon, otherwise selects a successor partition on the shortest path in the graph"""
