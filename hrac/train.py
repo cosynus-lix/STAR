@@ -105,6 +105,7 @@ def evaluate_policy_gara(env, env_name, goal_dim, grid, boss_policy, manager_pol
                 goal_partition = None
 
             state = obs["observation"]
+            new_state = state
             start_state = state
             start_partition_idx = boss_policy.identify_partition(state)
             start_partition = np.array(boss_policy.G[start_partition_idx].inf + boss_policy.G[start_partition_idx].sup)
@@ -124,11 +125,11 @@ def evaluate_policy_gara(env, env_name, goal_dim, grid, boss_policy, manager_pol
                         target_partition_interval = boss_policy.G[target_partition_idx]
                     target_partition = np.array(target_partition_interval.inf + target_partition_interval.sup)
 
-                    if new_state[:goal_dim] in boss_policy.G[3] and state[:goal_dim] not in boss_policy.G[3]:
+                    if start_partition_idx == 3:
                         print("ant in part 3" + "targeting part" + str(target_partition_idx))
-                    if new_state[:goal_dim] in boss_policy.G[2] and state[:goal_dim] not in boss_policy.G[2]:
+                    if start_partition_idx == 2:
                         print("ant in part 2" + "targeting part" + str(target_partition_idx))
-                    if new_state[:goal_dim] in boss_policy.G[1] and state[:goal_dim] not in boss_policy.G[1]:
+                    if start_partition_idx == 1:
                         print("ant in part 1" + "targeting part" + str(target_partition_idx))
 
                 if step_count % manager_propose_frequency == 0:

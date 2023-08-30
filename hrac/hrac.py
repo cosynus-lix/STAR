@@ -214,10 +214,10 @@ class Boss(object):
         else:
             if (start_partition, target_partition) not in self.automaton:
                 best_next_action = np.argmax(self.Q[reached_partition,goal])
-                td_target = reward + (1 - done) * discount * self.Q[reached_partition, goal][
+                td_target = reward + (1 - done) * discount * self.Q[reached_partition, goal,
                     best_next_action]
-                td_delta = td_target - self.Q[start_partition, goal][target_partition]
-                self.Q[start_partition, goal][target_partition] += alpha * td_delta
+                td_delta = td_target - self.Q[start_partition, goal,target_partition]
+                self.Q[start_partition, goal,target_partition] += alpha * td_delta
 
     def planning(self, start_partition, goal):
         """ Excludes unoptimal actions with planning """
@@ -422,7 +422,7 @@ class Boss(object):
                 print(self.Q.shape)
                 tmp = self.Q[:, :]
                 print(tmp.shape)
-                self.Q = -100*np.ones((size_G + size_reach + size_no_reach, size_G + size_reach + size_no_reach, size_G + size_reach + size_no_reach))
+                self.Q = -1000*np.ones((size_G + size_reach + size_no_reach, size_G + size_reach + size_no_reach, size_G + size_reach + size_no_reach))
                 print(self.Q.shape)
                 self.Q[:size_G, :size_G, :size_G] = tmp
 
