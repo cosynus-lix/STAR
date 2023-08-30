@@ -168,7 +168,7 @@ class Boss(object):
             #     elif start_partition == 3:
             #         partition = 3
             #         return partition
-            if list(self.automaton.neighbors(start_partition)):
+            if list(self.automaton.predecessors(start_partition)) or list(self.automaton.successors(start_partition)):
                 candidates = self.planning(start_partition, goal)
             else:
                 candidates = []
@@ -238,13 +238,13 @@ class Boss(object):
             for node in self.automaton:
                 if node not in exclusions and nx.has_path(self.automaton, source=node, target=start_partition):
                     path = nx.shortest_path(self.automaton, source=node, target=start_partition)
-                    exclusions += list(path[:-1])
+                    exclusions += list(path)
             
-            candidates = [i for i in range(len(self.G)) if i not in exclusions and i != goal]
+            candidates = [i for i in range(len(self.G)) if i not in exclusions]
             return candidates
         
         candidates = list(range(len(self.G)))
-        candidates.remove(goal)
+        candidates.remove(start_partition)
         return candidates
             
     def planning_policy(self, start_partition, epsilon=1, goal=None, prev_partition=None):
