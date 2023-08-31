@@ -54,7 +54,7 @@ if __name__ == "__main__":
     parser.add_argument("--reach_algo", default="Ai2", type=str)
     parser.add_argument("--boss_eps", default=0.99, type=int)
     parser.add_argument("--boss_eps_min", default=0.01, type=int)
-    parser.add_argument("--boss_eps_decay", default=0.99999, type=float)
+    parser.add_argument("--boss_eps_decay", default=0.99995, type=float)
     
 
     # Manager Parameters
@@ -79,6 +79,9 @@ if __name__ == "__main__":
     parser.add_argument("--ctrl_noise_sigma", default=1., type=float)
     parser.add_argument("--man_noise_sigma", default=1., type=float)
 
+    # Experiment Number
+    parser.add_argument("--exp", default="0", type=str)
+
     # Run the algorithm
     args = parser.parse_args()
 
@@ -91,4 +94,6 @@ if __name__ == "__main__":
     for key, val in vars(args).items():
         print('{}: {}'.format(key, val))
 
-    run_gara(args)
+    for exp in range(1):
+        args.exp = str(exp)
+        run_gara(args)

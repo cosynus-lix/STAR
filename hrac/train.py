@@ -786,7 +786,7 @@ def run_gara(args):
     torch.cuda.set_device(args.gid)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    file_name = "{}_{}_{}".format(args.env_name, "gara", args.seed)
+    file_name = "{}_{}_{}_{}".format(args.env_name, "gara", args.exp, args.seed)
     output_data = {"frames": [], "reward": [], "dist": []}    
 
     torch.manual_seed(args.seed)
