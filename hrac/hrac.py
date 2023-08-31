@@ -132,7 +132,7 @@ class Boss(object):
         i = -1
         for i in range(len(self.G)):
             G = self.G[i]
-            if G.inf[0] < goal[0] < G.sup[0] and G.inf[1] < goal[1] < G.sup[1]:
+            if G.inf[0] <= goal[0] <= G.sup[0] and G.inf[1] <= goal[1] <= G.sup[1]:
                 break
         return i
 
@@ -443,27 +443,30 @@ class Boss(object):
                 for i in range(1, len(reach)):
                     self.G.append(copy.deepcopy(reach[i]))
                     self.automaton.add_node(len(self.G) - 1)
-                    self.automaton.add_edge(len(self.G) - 1, target_partition, reward=1)
+                    self.automaton.add_edge(len(self.G) - 1, target_partition)
                     self.unsafe.append([target_partition, len(self.G) - 1 ])
                     if self.policy == 'Q-learning':
                         self.Q[len(self.G) - 1,:,target_partition] = 0
                         self.Q[len(self.G) - 1,:] = self.Q[start_partition,:]
                         self.Q[len(self.G) - 1, :, start_partition] = self.Q[start_partition, :, start_partition]
                         self.Q[start_partition, :, len(self.G) - 1] = self.Q[start_partition, :, start_partition]
-                    elif self.policy == 'Planning':
-                        self.graph.add_node(len(self.G) - 1)
-                        reward = 1 # nx.get_edge_attributes(self.graph, 'reward')[(start_partition, target_partition)]
-                        self.graph.add_edge(len(self.G) - 1, target_partition, reward=reward)
+                    # elif self.policy == 'Planning':
+                    #     self.graph.add_node(len(self.G) - 1)
+                    #     reward = 1 # nx.get_edge_attributes(self.graph, 'reward')[(start_partition, target_partition)]
+                    #     self.graph.add_edge(len(self.G) - 1, target_partition, reward=reward)
                             
-                    for j in next:
-                        self.automaton.add_edge(len(self.G) - 1, j, reward=-10)
+                    # for j in next:
+                    #     self.automaton.add_edge(len(self.G) - 1, j, reward=-10)
             if no_reach:
                 for i in range(len(no_reach)):
                     self.G.append(copy.deepcopy(no_reach[i]))
                     self.automaton.add_node(len(self.G) - 1)
+                    self.automaton.add_edge(len(self.G) - 1, start_partition)
+                    for j in range(n, n+len(reach)-1):
+                        self.automaton.add_edge(len(self.G) - 1, j)
                     self.unsafe.append([len(self.G) - 1, target_partition])
                     for j in next:
-                        self.automaton.add_edge(len(self.G) - 1, j, reward=1)
+                        self.automaton.add_edge(len(self.G) - 1, j)
 
                     if self.policy == 'Q-learning':
                         self.Q[len(self.G) - 1,:] = self.Q[start_partition,:]
@@ -485,8 +488,8 @@ class Boss(object):
                 and goal_pair not in self.unsafe \
                 and self.high_steps[(goal_pair[0], 
                                      goal_pair[1])] > min_steps \
-                and goal_pair[0] != goal_pair[1] :
-                # and not nx.has_path(self.automaton, source=goal_pair[0], target=goal_partition) \
+                and goal_pair[0] != goal_pair[1] \
+                and not nx.has_path(self.automaton, source=goal_pair[0], target=goal_pair[1]) :
                 
                 self.split(forward_model, start_partition=goal_pair[0], target_partition=goal_pair[1], replay_buffer=replay_buffer)
 

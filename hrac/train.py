@@ -1087,6 +1087,7 @@ def run_gara(args):
             s = controller_buffer.storage[0][-args.boss_propose_freq - 1]
             if reached_partition_idx == prev_target_partition_idx:
                 boss_buffer.add((s, prev_start_partition, state, reached_partition, manager_reward, boss_reward))
+                boss_policy.high_steps[(prev_start_partition_idx, reached_partition_idx)] += 1
 
         manager_transition[4] += manager_reward * args.man_rew_scale
         manager_transition[-1].append(action)
