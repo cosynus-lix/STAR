@@ -94,6 +94,6 @@ if __name__ == "__main__":
     for key, val in vars(args).items():
         print('{}: {}'.format(key, val))
 
-    for exp in range(1):
+    for exp in range(5):
         args.exp = str(exp)
         run_gara(args)

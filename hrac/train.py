@@ -798,6 +798,9 @@ def run_gara(args):
     if args.env_name in ["AntMaze", "AntPush", "AntFall"] and not state_dims:
         goal_dim = goal.shape[0]
         goal_cond = True
+    elif args.env_name in ["AntMaze", "AntPush", "AntFall"] and state_dims:
+        goal_dim = len(state_dims)
+        goal_cond = True
     elif state_dims:
         goal_dim = len(state_dims)
         goal_cond = True

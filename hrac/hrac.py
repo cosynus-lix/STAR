@@ -110,6 +110,7 @@ class Boss(object):
         self.reachability_algorithm = reachability_algorithm
         self.state_dim = state_dim
         self.goal_dim = goal_dim
+        self.goal_cond = goal_cond
         self.policy = policy
         self.partition_steps = defaultdict(lambda: 0)
         self.automaton = nx.DiGraph()
@@ -117,10 +118,10 @@ class Boss(object):
             self.automaton.add_node(i)
 
         if self.policy == 'Q-learning':
-            if goal_cond:
+            if self.goal_cond:
                 self.Q = np.zeros((len(self.G), len(self.G), len(self.G)))                
             else:
-                self.Q = defaultdict(lambda: np.zeros(len(self.G)))
+                self.Q = np.zeros((len(self.G), len(self.G)))                
         elif self.policy == 'Planning':
             self.graph = copy.deepcopy(self.automaton)
 
@@ -155,19 +156,6 @@ class Boss(object):
             print(goal)
 
         if self.policy == 'Q-learning':
-            # if goal > start_partition:
-            #     if start_partition == 0:
-            #         partition = 1
-            #         return partition
-            #     elif start_partition == 1:
-            #         partition = 2
-            #         return partition
-            #     elif start_partition == 2:
-            #         partition = 3
-            #         return partition
-            #     elif start_partition == 3:
-            #         partition = 3
-            #         return partition
             if list(self.automaton.predecessors(start_partition)) or list(self.automaton.successors(start_partition)):
                 candidates = self.planning(start_partition, goal)
             else:
@@ -209,8 +197,8 @@ class Boss(object):
             best_next_action = np.argmax(self.Q[reached_partition])
             td_target = reward + (1 - done) * discount * self.Q[reached_partition][
                 best_next_action]
-            td_delta = td_target - self.Q[start_partition][target_partition]
-            self.Q[start_partition][target_partition] += alpha * td_delta
+            td_delta = td_target - self.Q[start_partition, target_partition]
+            self.Q[start_partition, target_partition] += alpha * td_delta
         else:
             if (start_partition, target_partition) not in self.automaton:
                 best_next_action = np.argmax(self.Q[reached_partition,goal])
@@ -236,9 +224,12 @@ class Boss(object):
         predecessors = list(self.automaton.predecessors(start_partition))
         if predecessors:
             for node in self.automaton:
-                if node not in exclusions and nx.has_path(self.automaton, source=node, target=start_partition):
+                if self.goal_cond and node not in exclusions and nx.has_path(self.automaton, source=node, target=start_partition):
                     path = nx.shortest_path(self.automaton, source=node, target=start_partition)
                     exclusions += list(path)
+                elif not self.goal_cond and node not in exclusions and nx.has_path(self.automaton, source=node, target=start_partition):
+                    path = nx.shortest_path(self.automaton, source=node, target=start_partition)
+                    exclusions += list(path[:-1])
             
             candidates = [i for i in range(len(self.G)) if i not in exclusions and [i, start_partition] not in self.unsafe ]
             return candidates
@@ -420,18 +411,28 @@ class Boss(object):
                 size_no_reach = len(no_reach)
                 print(len(self.G))
                 print(self.Q.shape)
-                tmp = self.Q[:, :]
+                if self.goal_cond:
+                    tmp = self.Q[:, :]
+                    self.Q = -1000*np.ones((size_G + size_reach + size_no_reach, size_G + size_reach + size_no_reach, size_G + size_reach + size_no_reach))
+                    self.Q[:size_G, :size_G, :size_G] = tmp
+                else:
+                    tmp = self.Q[:]
+                    self.Q = -1000*np.ones((size_G + size_reach + size_no_reach, size_G + size_reach + size_no_reach))
+                    self.Q[:size_G, :size_G] = tmp
                 print(tmp.shape)
-                self.Q = -1000*np.ones((size_G + size_reach + size_no_reach, size_G + size_reach + size_no_reach, size_G + size_reach + size_no_reach))
                 print(self.Q.shape)
-                self.Q[:size_G, :size_G, :size_G] = tmp
 
             self.G[start_partition] = copy.deepcopy(reach[0])
             self.automaton.add_edge(start_partition, target_partition, reward=1)
             self.unsafe.append([target_partition, start_partition])
             if self.policy == 'Q-learning':
-                tmp = copy.copy(self.Q[start_partition, :, target_partition])
-                self.Q[start_partition, :, target_partition] = 0
+                if self.goal_cond:
+                    tmp = copy.copy(self.Q[start_partition, :, target_partition])
+                    self.Q[start_partition, :, target_partition] = 0
+                else:
+                    tmp = copy.copy(self.Q[start_partition, target_partition])
+                    self.Q[start_partition, target_partition] = 0
+
             elif self.policy == 'Planning' and (start_partition, target_partition) in self.graph.edges:
                 reward = 1 # nx.get_edge_attributes(self.graph, 'reward')[(start_partition, target_partition)]
                 self.automaton.add_edge(start_partition, target_partition, reward=reward)
@@ -446,10 +447,16 @@ class Boss(object):
                     self.automaton.add_edge(len(self.G) - 1, target_partition)
                     self.unsafe.append([target_partition, len(self.G) - 1 ])
                     if self.policy == 'Q-learning':
-                        self.Q[len(self.G) - 1,:,target_partition] = 0
-                        self.Q[len(self.G) - 1,:] = self.Q[start_partition,:]
-                        self.Q[len(self.G) - 1, :, start_partition] = self.Q[start_partition, :, start_partition]
-                        self.Q[start_partition, :, len(self.G) - 1] = self.Q[start_partition, :, start_partition]
+                        if self.goal_cond:
+                            self.Q[len(self.G) - 1,:,target_partition] = 0
+                            self.Q[len(self.G) - 1,:] = self.Q[start_partition,:]
+                            self.Q[len(self.G) - 1, :, start_partition] = self.Q[start_partition, :, start_partition]
+                            self.Q[start_partition, :, len(self.G) - 1] = self.Q[start_partition, :, start_partition]
+                        else:
+                            self.Q[len(self.G) - 1,target_partition] = 0
+                            self.Q[len(self.G) - 1] = self.Q[start_partition]
+                            self.Q[len(self.G) - 1, start_partition] = self.Q[start_partition, start_partition]
+                            self.Q[start_partition, len(self.G) - 1] = self.Q[start_partition, start_partition]
                     # elif self.policy == 'Planning':
                     #     self.graph.add_node(len(self.G) - 1)
                     #     reward = 1 # nx.get_edge_attributes(self.graph, 'reward')[(start_partition, target_partition)]
@@ -469,9 +476,14 @@ class Boss(object):
                         self.automaton.add_edge(len(self.G) - 1, j)
 
                     if self.policy == 'Q-learning':
-                        self.Q[len(self.G) - 1,:] = self.Q[start_partition,:]
-                        self.Q[len(self.G) - 1, :, start_partition] = self.Q[start_partition, :, target_partition] / discount
-                        self.Q[len(self.G) - 1,:, target_partition] = tmp
+                        if self.goal_cond:
+                            self.Q[len(self.G) - 1,:] = self.Q[start_partition,:]
+                            self.Q[len(self.G) - 1, :, start_partition] = self.Q[start_partition, :, target_partition] / discount
+                            self.Q[len(self.G) - 1,:, target_partition] = tmp
+                        else:
+                            self.Q[len(self.G) - 1] = self.Q[start_partition]
+                            self.Q[len(self.G) - 1, start_partition] = self.Q[start_partition, target_partition] / discount
+                            self.Q[len(self.G) - 1, target_partition] = tmp
                     elif self.policy == 'Planning':
                         self.graph.add_node(len(self.G) - 1)
 
