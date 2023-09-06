@@ -35,7 +35,7 @@ def get_reward_fn(env_name):
     elif env_name == 'AntFall':
         return lambda obs, goal: -np.sum(np.square(obs[:3] - goal)) ** 0.5
     elif env_name == 'AntMazeCam':
-        return lambda obs, ori, goal: -np.sum(np.square(obs[:2] - goal)) ** 0.5 - 5 + 5 * (-0.8 < ori < -0.2)
+        return lambda obs, ori, goal: -np.sum(np.square(obs[:2] - goal)) ** 0.5
     else:
         assert False, 'Unknown env'
 
@@ -136,8 +136,7 @@ class EnvWithGoal(object):
             reward = self.reward_fn(obs, self.goal)
         elif self.env_name in ['AntMazeCam']:
             ori = self.base_env.get_ori()
-            # if 16 <= obs[0] <= 20 and obs[1] <= 8 and -0.8 <= ori <= -0.2 and not self.cam:
-            if -0.8 < ori < -0.2 and not self.cam:
+            if 16 <= obs[0] <= 20 and obs[1] <= 8 and -1 <= ori <= 0 and not self.cam:
                 self.ref = obs
                 self.cam = True
                 # self.play_history('AntMaze')
