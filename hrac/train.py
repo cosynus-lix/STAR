@@ -258,7 +258,13 @@ def evaluate_policy_hiro(env, env_name, grid, boss_policy, manager_policy, contr
         return avg_reward, avg_controller_rew, avg_step_count, avg_env_finish, grid
 
 def get_reward_function(dims, absolute_goal=False, binary_reward=False):
-    if absolute_goal and binary_reward:
+    if type(dims) == list:
+        def controller_reward(z, subgoal, next_z, scale):
+            z = z[dims]
+            next_z = next_z[dims]
+            reward = -np.linalg.norm(z + subgoal - next_z, axis=-1) * scale
+            return reward
+    elif absolute_goal and binary_reward:
         def controller_reward(z, subgoal, next_z, scale):
             z = z[:dims]
             next_z = next_z[:dims]
@@ -275,12 +281,6 @@ def get_reward_function(dims, absolute_goal=False, binary_reward=False):
             z = z[:dims]
             next_z = next_z[:dims]
             reward = float(np.linalg.norm(z + subgoal - next_z, axis=-1) <= 1.414) * scale
-            return reward
-    elif type(dims) == list:
-        def controller_reward(z, subgoal, next_z, scale):
-            z = z[dims]
-            next_z = next_z[dims]
-            reward = -np.linalg.norm(z + subgoal - next_z, axis=-1) * scale
             return reward
     else:
         def controller_reward(z, subgoal, next_z, scale):
@@ -726,13 +726,17 @@ def run_gara(args):
     if args.env_name == "AntGather":
         env = GatherEnv(create_gather_env(args.env_name, args.seed), args.env_name)
         env.seed(args.seed)   
-    elif args.env_name in ["AntMaze", "AntMazeSparse", "AntPush", "AntFall"]:
+    elif args.env_name in ["AntMaze", "AntMazeSparse", "AntPush", "AntFall", "AntMazeCam"]:
         env = EnvWithGoal(create_maze_env(args.env_name, args.seed), args.env_name)
         env.seed(args.seed)
     else:
         raise NotImplementedError
 
-    state_dims = [0,1,15,16]
+    if args.env_name in ["AntMaze", "AntMazeSparse"]:
+        state_dims = [0,1,15,16]
+    elif args.env_name in ["AntMazeCam"]:
+        state_dims = [0,1,3,4,5,15,16]
+        
     if state_dims:
         low = np.array((-10, -10, -0.5, -1, -1, -1, -1,
                 -0.5, -0.3, -0.5, -0.3, -0.5, -0.3, -0.5, -0.3,-5,-5,-5,

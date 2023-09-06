@@ -200,6 +200,8 @@ class MazeEnv(gym.Env):
   def _get_obs(self):
     return np.concatenate([self.wrapped_env._get_obs(),
                            [self.t * 0.001]])
+  def get_ori(self):
+    return self.wrapped_env.get_ori()
 
   def reset(self):
     self.t = 0
@@ -253,3 +255,6 @@ class MazeEnv(gym.Env):
     next_obs = self._get_obs()
     done = False
     return next_obs, inner_reward, done, info
+  
+  def copy_state(self, qpos, qvel):
+    self.wrapped_env.copy_state(qpos, qvel)

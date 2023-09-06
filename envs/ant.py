@@ -149,3 +149,6 @@ class AntEnv(mujoco_env.MujocoEnv, utils.EzPickle):
     self.viewer.cam.trackbodyid = -1
     self.viewer.cam.distance = 50
     self.viewer.cam.elevation = -90
+
+  def copy_state(self, qpos, qvel):
+    self.set_state(qpos, qvel)
