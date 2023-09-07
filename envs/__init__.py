@@ -95,11 +95,12 @@ class EnvWithGoal(object):
         self.reward_fn = get_reward_fn(env_name)
         self.success_fn = get_success_fn(env_name)
         self.goal = None
-        self.distance_threshold = 5 if env_name in ['AntMaze', 'AntPush', 'AntFall'] else 1
+        self.distance_threshold = 5 if env_name in ['AntMaze', 'AntPush', 'AntFall', 'AntMazeCam'] else 1
         if env_name in ['AntMazeCam']:
             self.cam = False 
+            self.alt_base_env = envs.create_maze_env.create_maze_env('AntMaze', 2)
         self.count = 0
-        self.early_stop = False if env_name in ['AntMaze', 'AntPush', 'AntFall'] else True
+        self.early_stop = False if env_name in ['AntMaze', 'AntPush', 'AntFall', 'AntMazeCam'] else True
         self.early_stop_flag = False
         self.history = []
         self.past = []
@@ -122,6 +123,7 @@ class EnvWithGoal(object):
         self.desired_goal = self.goal if self.env_name in ['AntMaze', 'AntPush', 'AntFall', 'AntMazeCam'] else None
         if self.env_name in ['AntMazeCam']:
             self.cam = False 
+            self.alt_base_env.reset()
         return {
             'observation': obs.copy(),
             'achieved_goal': obs[:2],
@@ -130,20 +132,22 @@ class EnvWithGoal(object):
 
     def step(self, a):
         self.history.append(a)
-        obs, _, done, info = self.base_env.step(a)
-        self.past.append(obs)
         if self.env_name in ['AntMaze', 'AntPush', 'AntFall']:
+            obs, _, done, info = self.base_env.step(a)
             reward = self.reward_fn(obs, self.goal)
         elif self.env_name in ['AntMazeCam']:
             ori = self.base_env.get_ori()
+            obs = self.base_env._get_obs()
             if 16 <= obs[0] <= 20 and obs[1] <= 8 and -1 <= ori <= 0 and not self.cam:
-                self.ref = obs
                 self.cam = True
-                # self.play_history('AntMaze')
                 t = self.base_env.t 
-                self.base_env = envs.create_maze_env.create_maze_env('AntMaze', 2)
-                self.base_env.t = t
-                self.base_env.copy_state(obs[:15], obs[15:29])
+                self.alt_base_env.t = t
+                self.alt_base_env.copy_state(obs[:15], obs[15:29])
+                obs, _, done, info = self.alt_base_env.step(a)
+            elif self.cam:
+                obs, _, done, info = self.alt_base_env.step(a)
+            else:
+                obs, _, done, info = self.base_env.step(a)
 
             reward = self.reward_fn(obs, ori, self.goal)
 
@@ -157,15 +161,6 @@ class EnvWithGoal(object):
             'desired_goal': self.desired_goal,
         }
         return next_obs, reward, done or self.count >= 500, info
-
-    def play_history(self, maze_id):
-        self.base_env = envs.create_maze_env.create_maze_env(maze_id, 2)
-        self.base_env.reset()
-        self.base_env.copy_state(self.init_qpos, self.init_qvel)
-        self.count = 0
-        for a in self.history:
-            self.step(a)     
-            abs(self.past[self.count] - self.base_env._get_obs()) < 0.0001
 
     def render(self):
         self.base_env.render()

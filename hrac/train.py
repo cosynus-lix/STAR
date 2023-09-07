@@ -258,13 +258,7 @@ def evaluate_policy_hiro(env, env_name, grid, boss_policy, manager_policy, contr
         return avg_reward, avg_controller_rew, avg_step_count, avg_env_finish, grid
 
 def get_reward_function(dims, absolute_goal=False, binary_reward=False):
-    if type(dims) == list:
-        def controller_reward(z, subgoal, next_z, scale):
-            z = z[dims]
-            next_z = next_z[dims]
-            reward = -np.linalg.norm(z + subgoal - next_z, axis=-1) * scale
-            return reward
-    elif absolute_goal and binary_reward:
+    if absolute_goal and binary_reward:
         def controller_reward(z, subgoal, next_z, scale):
             z = z[:dims]
             next_z = next_z[:dims]
@@ -281,6 +275,12 @@ def get_reward_function(dims, absolute_goal=False, binary_reward=False):
             z = z[:dims]
             next_z = next_z[:dims]
             reward = float(np.linalg.norm(z + subgoal - next_z, axis=-1) <= 1.414) * scale
+            return reward
+    elif type(dims) == list:
+        def controller_reward(z, subgoal, next_z, scale):
+            z = z[dims]
+            next_z = next_z[dims]
+            reward = -np.linalg.norm(z + subgoal - next_z, axis=-1) * scale
             return reward
     else:
         def controller_reward(z, subgoal, next_z, scale):
@@ -373,13 +373,13 @@ def run_hrac(args):
     if args.env_name == "AntGather":
         env = GatherEnv(create_gather_env(args.env_name, args.seed), args.env_name)
         env.seed(args.seed)   
-    elif args.env_name in ["AntMaze", "AntMazeSparse", "AntPush", "AntFall"]:
+    elif args.env_name in ["AntMaze", "AntMazeSparse", "AntPush", "AntFall", "AntMazeCam"]:
         env = EnvWithGoal(create_maze_env(args.env_name, args.seed), args.env_name)
         env.seed(args.seed)
     else:
         raise NotImplementedError
 
-    state_dims = [0,1,15,16]
+    state_dims = None
     if state_dims:
         low = np.array((-10, -10, -0.5, -1, -1, -1, -1,
                 -0.5, -0.3, -0.5, -0.3, -0.5, -0.3, -0.5, -0.3,-5,-5,-5,
@@ -432,7 +432,7 @@ def run_hrac(args):
     torch.backends.cudnn.benchmark = False
 
     state_dim = state.shape[0]
-    if args.env_name in ["AntMaze", "AntPush", "AntFall"]:
+    if args.env_name in ["AntMaze", "AntPush", "AntFall", "AntMazeCam"]:
         goal_dim = goal.shape[0]
     else:
         goal_dim = 0
@@ -582,9 +582,9 @@ def run_hrac(args):
                         controller_policy.save("./models", args.env_name, args.algo)
                         manager_policy.save("./models", args.env_name, args.algo)
 
-                if traj_buffer.full():
-                     n_states = update_amat_and_train_anet(n_states, adj_mat, state_list, state_dict, a_net, traj_buffer,
-                        optimizer_r, controller_goal_dim, device, args, state_dims)
+                # if traj_buffer.full():
+                #      n_states = update_amat_and_train_anet(n_states, adj_mat, state_list, state_dict, a_net, traj_buffer,
+                #         optimizer_r, controller_goal_dim, device, args, state_dims)
 
                 if len(manager_transition[-2]) != 1:                    
                     manager_transition[1] = state
@@ -732,11 +732,8 @@ def run_gara(args):
     else:
         raise NotImplementedError
 
-    if args.env_name in ["AntMaze", "AntMazeSparse"]:
-        state_dims = [0,1,15,16]
-    elif args.env_name in ["AntMazeCam"]:
-        state_dims = [0,1,3,4,5,15,16]
-        
+    # state_dims = [0,1,15,16]
+    state_dims = [0,1,3,4,5]
     if state_dims:
         low = np.array((-10, -10, -0.5, -1, -1, -1, -1,
                 -0.5, -0.3, -0.5, -0.3, -0.5, -0.3, -0.5, -0.3,-5,-5,-5,
@@ -799,10 +796,10 @@ def run_gara(args):
     torch.backends.cudnn.benchmark = False
 
     state_dim = state.shape[0]
-    if args.env_name in ["AntMaze", "AntPush", "AntFall"] and not state_dims:
+    if args.env_name in ["AntMaze", "AntPush", "AntFall", "AntMazeCam"] and not state_dims:
         goal_dim = goal.shape[0]
         goal_cond = True
-    elif args.env_name in ["AntMaze", "AntPush", "AntFall"] and state_dims:
+    elif args.env_name in ["AntMaze", "AntPush", "AntFall", "AntMazeCam"] and state_dims:
         goal_dim = len(state_dims)
         goal_cond = True
     elif state_dims:
