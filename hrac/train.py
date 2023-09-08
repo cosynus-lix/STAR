@@ -582,9 +582,9 @@ def run_hrac(args):
                         controller_policy.save("./models", args.env_name, args.algo)
                         manager_policy.save("./models", args.env_name, args.algo)
 
-                # if traj_buffer.full():
-                #      n_states = update_amat_and_train_anet(n_states, adj_mat, state_list, state_dict, a_net, traj_buffer,
-                #         optimizer_r, controller_goal_dim, device, args, state_dims)
+                if traj_buffer.full():
+                     n_states = update_amat_and_train_anet(n_states, adj_mat, state_list, state_dict, a_net, traj_buffer,
+                        optimizer_r, controller_goal_dim, device, args, state_dims)
 
                 if len(manager_transition[-2]) != 1:                    
                     manager_transition[1] = state
@@ -974,7 +974,7 @@ def run_gara(args):
                     # if len(fwd_errors) > 1 and fwd_errors[-1] - fwd_errors[-2] < 0.001:
                         # boss_policy.train(fwd_model, goal, transition_list, args.boss_buffer_min_size, batch_size=args.boss_batch_size, replay_buffer=controller_buffer)
                             if len(fwd_errors[(goal_pair[0], goal_pair[1])]) > 1 and fwd_errors[(goal_pair[0], goal_pair[1])][-1] - fwd_errors[(goal_pair[0], goal_pair[1])][-2] < 0.001:
-                                boss_policy.train(fwd_model, goal, [goal_pair], args.boss_buffer_min_size, batch_size=args.boss_batch_size, replay_buffer=controller_buffer)
+                                boss_policy.train(fwd_model, goal, [goal_pair], args.boss_buffer_min_size, batch_size=args.boss_batch_size, replay_buffer=boss_buffer)
 
                     writer.add_scalar("data/Boss_nbr_part", len(boss_policy.G), total_timesteps)
                     writer.add_scalar("data/Boss_eps", epsilon, total_timesteps)
@@ -1644,6 +1644,7 @@ def run_handcrafted(args):
 
 def run_hiro(args):
     
+    
     if not os.path.exists("./results"):
         os.makedirs("./results")
     if args.save_models and not os.path.exists("./models"):
@@ -1658,24 +1659,39 @@ def run_hiro(args):
     if args.env_name == "AntGather":
         env = GatherEnv(create_gather_env(args.env_name, args.seed), args.env_name)
         env.seed(args.seed)   
-    elif args.env_name in ["AntMaze", "AntMazeSparse", "AntPush", "AntFall"]:
+    elif args.env_name in ["AntMaze", "AntMazeSparse", "AntPush", "AntFall", "AntMazeCam"]:
         env = EnvWithGoal(create_maze_env(args.env_name, args.seed), args.env_name)
         env.seed(args.seed)
     else:
         raise NotImplementedError
 
-    low = np.array((-10, -10, -0.5, -1, -1, -1, -1,
+    state_dims = [0,1,3,4,5]
+    if state_dims:
+        low = np.array((-10, -10, -0.5, -1, -1, -1, -1,
+                -0.5, -0.3, -0.5, -0.3, -0.5, -0.3, -0.5, -0.3,-5,-5,-5,
+                -8,-8,-7,-8,-7,-8,-9,-8,-9,-8,-7,0.0000))
+    else:
+        low = np.array((-10, -10, -0.5, -1, -1, -1, -1,
                     -0.5, -0.3, -0.5, -0.3, -0.5, -0.3, -0.5, -0.3))
+    
+    
     max_action = float(env.action_space.high[0])
     policy_noise = 0.2
     noise_clip = 0.5
     high = -low
     man_scale = (high - low) / 2
-    epsilon = args.boss_eps
-    if args.env_name == "AntFall":
+    if state_dims:
+        new_man_scale = man_scale[state_dims]   
+    else:
+        new_man_scale = man_scale 
+
+    if state_dims:
+        controller_goal_dim = len(state_dims)
+    elif args.env_name == "AntFall":
         controller_goal_dim = 3
     else:
         controller_goal_dim = 2
+        
     if args.absolute_goal:
         man_scale[0] = 30
         man_scale[1] = 30
@@ -1693,7 +1709,7 @@ def run_hiro(args):
     torch.cuda.set_device(args.gid)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    file_name = "{}_{}_{}".format(args.env_name, "gara", args.seed)
+    file_name = "{}_{}_{}".format(args.env_name, args.algo, args.seed)
     output_data = {"frames": [], "reward": [], "dist": []}    
 
     torch.manual_seed(args.seed)
@@ -1702,26 +1718,14 @@ def run_hiro(args):
     torch.backends.cudnn.benchmark = False
 
     state_dim = state.shape[0]
-    if args.env_name in ["AntMaze", "AntPush", "AntFall"]:
+    if args.env_name in ["AntMaze", "AntPush", "AntFall", "AntMazeCam"]:
         goal_dim = goal.shape[0]
     else:
         goal_dim = 0
 
-    g_low = [-4, -4]
-    g_high = [20, 20]
-    G_init = [utils.ndInterval(goal_dim, inf=g_low, sup=g_high)]
+    states_l = state
+    states_u = state
     
-    resolution = 24
-    grid = np.zeros((resolution, resolution))
-
-    boss_policy = hrac.Boss(
-        G_init=G_init,
-        state_dim=state_dim,
-        goal_dim=goal_dim,
-        policy=args.boss_policy,
-        reachability_algorithm=args.reach_algo,
-        mem_capacity=args.boss_batch_size)
-
     controller_policy = hrac.Controller(
         state_dim=state_dim,
         goal_dim=controller_goal_dim,
@@ -1743,14 +1747,17 @@ def run_hiro(args):
         critic_lr=args.man_crit_lr,
         candidate_goals=args.candidate_goals,
         correction=not args.no_correction,
-        scale=man_scale,
+        scale=new_man_scale,
         goal_loss_coeff=args.goal_loss_coeff,
-        absolute_goal=args.absolute_goal,
-        partitions=True
+        absolute_goal=args.absolute_goal
     )
 
-    calculate_controller_reward = get_reward_function(
-        controller_goal_dim, absolute_goal=args.absolute_goal, binary_reward=args.binary_int_reward)
+    if state_dims:
+        calculate_controller_reward = get_reward_function(
+            state_dims, absolute_goal=args.absolute_goal, binary_reward=args.binary_int_reward)
+    else:
+        calculate_controller_reward = get_reward_function(
+            controller_goal_dim, absolute_goal=args.absolute_goal, binary_reward=args.binary_int_reward)
 
     if args.noise_type == "ou":
         man_noise = utils.OUNoise(state_dim, sigma=args.man_noise_sigma)
@@ -1760,9 +1767,21 @@ def run_hiro(args):
         man_noise = utils.NormalNoise(sigma=args.man_noise_sigma)
         ctrl_noise = utils.NormalNoise(sigma=args.ctrl_noise_sigma)
 
-    boss_buffer = utils.PartitionBuffer(maxsize=args.boss_buffer_size)
     manager_buffer = utils.ReplayBuffer(maxsize=args.man_buffer_size)
     controller_buffer = utils.ReplayBuffer(maxsize=args.ctrl_buffer_size)
+
+    # Initialize adjacency matrix and adjacency network
+    n_states = 0
+    state_list = []
+    state_dict = {}
+    adj_mat = np.diag(np.ones(1500, dtype=np.uint8))
+    traj_buffer = utils.TrajectoryBuffer(capacity=args.traj_buffer_size)
+    a_net = ANet(controller_goal_dim, args.r_hidden_dim, args.r_embedding_dim)
+    if args.load_adj_net:
+        print("Loading adjacency network...")
+        a_net.load_state_dict(torch.load("./models/a_network.pth"))
+    a_net.to(device)
+    optimizer_r = optim.Adam(a_net.parameters(), lr=args.lr_r)
 
     if args.load:
         try:
@@ -1779,14 +1798,11 @@ def run_hiro(args):
     # Logging Parameters
     total_timesteps = 0
     timesteps_since_eval = 0
-    timesteps_since_boss = 0
     timesteps_since_manager = 0
     episode_timesteps = 0
-    timesteps_since_partition = 0
     timesteps_since_subgoal = 0
     episode_num = 0
     done = True
-    fwd_errors = []
     evaluations = []
 
     # Train
@@ -1815,7 +1831,7 @@ def run_hiro(args):
                     man_act_loss, man_crit_loss, man_goal_loss = manager_policy.train(controller_policy,
                         manager_buffer, ceil(episode_timesteps/args.train_manager_freq),
                         batch_size=args.man_batch_size, discount=args.man_discount, tau=args.man_soft_sync_rate,
-                        a_net=None, r_margin=r_margin)
+                        a_net=a_net, r_margin=r_margin)
                     
                     writer.add_scalar("data/manager_actor_loss", man_act_loss, total_timesteps)
                     writer.add_scalar("data/manager_critic_loss", man_crit_loss, total_timesteps)
@@ -1825,34 +1841,14 @@ def run_hiro(args):
                         print("Manager actor loss: {:.3f}".format(man_act_loss))
                         print("Manager critic loss: {:.3f}".format(man_crit_loss))
                         print("Manager goal loss: {:.3f}".format(man_goal_loss))
-                
-                # Train Boss
-                # if timesteps_since_boss >= args.train_boss_freq:
-                #     timesteps_since_boss = 0
-                #     if len(boss_buffer) >= args.boss_buffer_min_size:
-                #         for goal_pair in transition_list:
-                #             Gs = np.array(boss_policy.G[goal_pair[0]].inf + boss_policy.G[goal_pair[0]].sup)
-                #             Gt = np.array(boss_policy.G[goal_pair[1]].inf + boss_policy.G[goal_pair[1]].sup)
-                #             utils.train_forward_model(fwd_model, boss_buffer, Gs, Gt, n_epochs=args.fwd_training_epochs, \
-                #                                     batch_size=args.fwd_batch_size, device=device, verbose=False) 
-                #         fwd_errors.append(fwd_model.measure_error(boss_buffer, args.fwd_training_epochs))
-                #     if len(fwd_errors) > 1 and fwd_errors[-1] - fwd_errors[-2] < 0.0001:
-                #         boss_policy.train(fwd_model, goal, transition_list, args.boss_buffer_min_size, batch_size=args.boss_batch_size, replay_buffer=controller_buffer)
-
-                    writer.add_scalar("data/Boss_nbr_part", len(boss_policy.G), total_timesteps)
-                    writer.add_scalar("data/Boss_eps", epsilon, total_timesteps)
-
-                    if episode_num % 10 == 0:
-                        print("Boss partitions number : {:.3f}".format(len(boss_policy.G)))
-                        print("Boss epsilon: {:.3f}".format(epsilon))
 
                 # Evaluate
                 if timesteps_since_eval >= args.eval_freq:
                     timesteps_since_eval = 0
-                    avg_ep_rew, avg_controller_rew, avg_steps, avg_env_finish, grid = evaluate_policy_hiro(env, args.env_name, grid, boss_policy, manager_policy, controller_policy,
-                            calculate_controller_reward, args.ctrl_rew_scale, args.boss_propose_freq, args.manager_propose_freq,
+                    avg_ep_rew, avg_controller_rew, avg_steps, avg_env_finish =\
+                        evaluate_policy(env, args.env_name, manager_policy, controller_policy,
+                            calculate_controller_reward, args.ctrl_rew_scale, args.manager_propose_freq,
                             len(evaluations))
-                    utils.manager_mapping(grid, g_low, g_high, 'manager_hiro_mapping.png')
 
                     writer.add_scalar("eval/avg_ep_rew", avg_ep_rew, total_timesteps)
                     writer.add_scalar("eval/avg_controller_rew", avg_controller_rew, total_timesteps)
@@ -1870,13 +1866,7 @@ def run_hiro(args):
                     if args.save_models:
                         controller_policy.save("./models", args.env_name, args.algo)
                         manager_policy.save("./models", args.env_name, args.algo)
-                        boss_policy.save("./models", args.env_name, args.algo)
-                
-                if [start_partition_idx, target_partition_idx] not in transition_list:
-                    transition_list.append([start_partition_idx, target_partition_idx])
-                boss_policy.high_steps[(start_partition_idx, target_partition_idx)] += 1
-                boss_buffer.add((start_state, start_partition, state, reached_partition, manager_reward, boss_reward))
-                
+
                 if len(manager_transition[-2]) != 1:                    
                     manager_transition[1] = state
                     manager_transition[5] = float(True)
@@ -1884,72 +1874,50 @@ def run_hiro(args):
 
             obs = env.reset()
             goal = obs["desired_goal"]
-            goal_partition = boss_policy.identify_partition(goal)
-
-            transition_list = []
             state = obs["observation"]
-            start_state = state
-            start_partition_idx = boss_policy.identify_partition(state)
-            start_partition = np.array(boss_policy.G[start_partition_idx].inf + boss_policy.G[start_partition_idx].sup)
-            prev_start_partition_idx = start_partition_idx
-            prev_start_partition = start_partition
+            traj_buffer.create_new_trajectory()
+            traj_buffer.append(state)
             done = False
             episode_reward = 0
             episode_timesteps = 0
             just_loaded = False
             episode_num += 1
-            
-            epsilon *= args.boss_eps_decay
-            epsilon = max(epsilon, args.boss_eps_min)
-            # target_partition_idx = boss_policy.select_partition(start_partition_idx, epsilon, goal)
-            # target_partition_idx = handcrafted_planning(goal_partition, start_partition_idx)
-            # target_partition = np.array(boss_policy.G[target_partition_idx].inf + boss_policy.G[target_partition_idx].sup)
-            target_partition_idx, target_partition_interval = handcrafted_planning(goal, goal_partition, start_partition_idx, boss_policy)
-            target_partition = np.array(target_partition_interval.inf + target_partition_interval.sup)
-            prev_target_partition_idx = target_partition_idx
-            prev_target_partition = target_partition
 
-            # subgoal = manager_policy.sample_goal(state, np.concatenate((target_partition, goal)))
             subgoal = manager_policy.sample_goal(state, goal)
-
-            if not args.absolute_goal:
+            
+            if not args.absolute_goal and state_dims:
+                subgoal = man_noise.perturb_action(subgoal,
+                    min_action=-man_scale[state_dims], max_action=man_scale[state_dims])
+            elif not args.absolute_goal and not state_dims:
                 subgoal = man_noise.perturb_action(subgoal,
                     min_action=-man_scale[:controller_goal_dim], max_action=man_scale[:controller_goal_dim])
-            else:
+            elif args.absolute_goal and state_dims:
+                subgoal = man_noise.perturb_action(subgoal,
+                    min_action=np.zeros(controller_goal_dim), max_action=2*man_scale[state_dims])
+            else: 
                 subgoal = man_noise.perturb_action(subgoal,
                     min_action=np.zeros(controller_goal_dim), max_action=2*man_scale[:controller_goal_dim])
 
             timesteps_since_subgoal = 0
-            # manager_transition = [state, None, np.concatenate((target_partition, goal)), subgoal, 0, False, [state], []]
             manager_transition = [state, None, goal, subgoal, 0, False, [state], []]
 
         action = controller_policy.select_action(state, subgoal)
         action = ctrl_noise.perturb_action(action, -max_action, max_action)
         action_copy = action.copy()
 
-        next_tup, boss_reward, done, _ = env.step(action_copy)
-
-        next_goal = next_tup["desired_goal"]
-        next_state = next_tup["observation"]
-
-        controller_reward = calculate_controller_reward(state, subgoal, next_state, args.ctrl_rew_scale)
-        manager_reward = boss_reward 
-    
-        reached_partition_idx = boss_policy.identify_partition(state)
-        reached_partition = np.array(boss_policy.G[reached_partition_idx].inf + boss_policy.G[reached_partition_idx].sup)
-        boss_policy.policy_update(start_partition_idx, target_partition_idx, reached_partition_idx, boss_reward, done, args.boss_discount_factor, args.boss_alpha)
-
-        if transition_list and total_timesteps > args.boss_propose_freq and total_timesteps % args.boss_propose_freq != 0:
-            s = controller_buffer.storage[0][-args.boss_propose_freq - 1]
-            if reached_partition_idx == prev_target_partition_idx:
-                boss_buffer.add((s, prev_start_partition, state, reached_partition, manager_reward, boss_reward))
+        next_tup, manager_reward, done, _ = env.step(action_copy)
 
         manager_transition[4] += manager_reward * args.man_rew_scale
         manager_transition[-1].append(action)
 
-        manager_transition[-2].append(next_state)
+        next_goal = next_tup["desired_goal"]
+        next_state = next_tup["observation"]
 
-        subgoal = controller_policy.subgoal_transition(state, goal, next_state)
+        manager_transition[-2].append(next_state)
+        traj_buffer.append(next_state)
+
+        controller_reward = calculate_controller_reward(state, subgoal, next_state, args.ctrl_rew_scale)
+        subgoal = controller_policy.subgoal_transition(state, subgoal, next_state)
 
         controller_goal = subgoal
         episode_reward += controller_reward
@@ -1961,65 +1929,46 @@ def run_hiro(args):
 
         controller_buffer.add(
             (state, next_state, controller_goal, action, controller_reward, float(ctrl_done), [], []))
-
+        
         state = next_state
         goal = next_goal
 
         episode_timesteps += 1
         total_timesteps += 1
         timesteps_since_eval += 1
-        timesteps_since_boss += 1
-        timesteps_since_partition += 1
         timesteps_since_manager += 1
         timesteps_since_subgoal += 1
 
-        if timesteps_since_partition % args.boss_propose_freq == 0:
-            prev_start_partition_idx = start_partition_idx
-            prev_start_partition = start_partition
-            prev_target_partition_idx = target_partition_idx  
-            prev_target_partition = target_partition
-            epsilon *= args.boss_eps_decay
-            epsilon = max(epsilon, args.boss_eps_min)
-            boss_buffer.add((start_state, start_partition, state, reached_partition, manager_reward, boss_reward))
-            start_state = state
-            start_partition_idx = boss_policy.identify_partition(state)
-            start_partition = np.array(boss_policy.G[start_partition_idx].inf + boss_policy.G[start_partition_idx].sup)
-            
-            # target_partition_idx = handcrafted_planning(goal_partition, start_partition_idx)
-            target_partition_idx, target_partition_interval = handcrafted_planning(goal, goal_partition, start_partition_idx, boss_policy)
-            target_partition = np.array(target_partition_interval.inf + target_partition_interval.sup)
-
-            # target_partition_idx = boss_policy.select_partition(start_partition_idx, epsilon, goal)
-            target_partition = np.array(boss_policy.G[target_partition_idx].inf + boss_policy.G[target_partition_idx].sup)
-            timesteps_since_partition = 0
-            if [start_partition_idx, target_partition_idx] not in transition_list:
-                transition_list.append([start_partition_idx, target_partition_idx]) 
-            boss_policy.high_steps[(start_partition_idx, target_partition_idx)] += 1   
+        states_l = np.min((state, states_l), axis=0)
+        states_u = np.max((state, states_u), axis=0)
 
         if timesteps_since_subgoal % args.manager_propose_freq == 0:
             manager_transition[1] = state
-            manager_transition[5] = float(done)        
-            
+            manager_transition[5] = float(done)
+
             manager_buffer.add(manager_transition)
-            # subgoal = manager_policy.sample_goal(state, np.concatenate((target_partition, goal)))
             subgoal = manager_policy.sample_goal(state, goal)
 
-            if not args.absolute_goal:
+            if not args.absolute_goal and state_dims:
+                subgoal = man_noise.perturb_action(subgoal,
+                    min_action=-man_scale[state_dims], max_action=man_scale[state_dims])
+            elif not args.absolute_goal and not state_dims:
                 subgoal = man_noise.perturb_action(subgoal,
                     min_action=-man_scale[:controller_goal_dim], max_action=man_scale[:controller_goal_dim])
-            else:
+            elif args.absolute_goal and state_dims:
+                subgoal = man_noise.perturb_action(subgoal,
+                    min_action=np.zeros(controller_goal_dim), max_action=2*man_scale[state_dims])
+            else: 
                 subgoal = man_noise.perturb_action(subgoal,
                     min_action=np.zeros(controller_goal_dim), max_action=2*man_scale[:controller_goal_dim])
 
             timesteps_since_subgoal = 0
-            # manager_transition = [state, None, np.concatenate((target_partition,goal)), subgoal, 0, False, [state], []]
             manager_transition = [state, None, goal, subgoal, 0, False, [state], []]
 
     # Final evaluation
-    avg_ep_rew, avg_controller_rew, avg_steps, avg_env_finish, grid = evaluate_policy_hiro(
-        env, args.env_name, grid, boss_policy, manager_policy, controller_policy, calculate_controller_reward,
-        args.ctrl_rew_scale, args.boss_propose_freq, args.manager_propose_freq, len(evaluations))
-    utils.manager_mapping(grid, g_low, g_high,'manager_hiro_mapping.png')
+    avg_ep_rew, avg_controller_rew, avg_steps, avg_env_finish = evaluate_policy(
+        env, args.env_name, manager_policy, controller_policy, calculate_controller_reward,
+        args.ctrl_rew_scale, args.manager_propose_freq, len(evaluations))
     evaluations.append([avg_ep_rew, avg_controller_rew, avg_steps])
     output_data["frames"].append(total_timesteps)
     if args.env_name == 'AntGather':
@@ -2031,9 +1980,13 @@ def run_hiro(args):
     if args.save_models:
         controller_policy.save("./models", args.env_name, args.algo)
         manager_policy.save("./models", args.env_name, args.algo)
-        boss_policy.save("./models", args.env_name, args.algo)
 
     writer.close()
+
     output_df = pd.DataFrame(output_data)
     output_df.to_csv(os.path.join("./results", file_name+".csv"), float_format="%.4f", index=False)
+    l_bound = pd.DataFrame(states_l)
+    l_bound.to_csv(os.path.join("./results", "states_l"+".csv"), float_format="%.4f", index=False)
+    u_bound = pd.DataFrame(states_u)
+    u_bound.to_csv(os.path.join("./results", "states_u"+".csv"), float_format="%.4f", index=False)
     print("Training finished.")

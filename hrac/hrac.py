@@ -183,6 +183,8 @@ class Boss(object):
         Q = self.Q
         policy = make_epsilon_greedy_policy(Q, epsilon, len(self.G))
         action_probs = policy(start_partition, goal)
+        if goal and goal == start_partition:
+            return goal
         if candidates:
             u = [i for i in range(len(self.G)) if i not in candidates]
             unprob = np.sum(action_probs[u])
@@ -280,30 +282,41 @@ class Boss(object):
             for p in partitions['no_reach']:
                 no_reach += [ndInterval(self.goal_dim, p.inf[:self.goal_dim], p.sup[:self.goal_dim])]
 
-        elif self.reachability_algorithm == "ReluVal":
-            reluval_path = args.reluval_path
-            os.system(reluval_path + "/network_test  1 ./nnet/forward_" + str(start_partition) + "_" + str(
-                target_partition) + ".nnet 0 ./input.json")
+        # elif self.reachability_algorithm == "ReluVal":
+        #     reluval_path = args.reluval_path
+        #     os.system(reluval_path + "/network_test  1 ./nnet/forward_" + str(start_partition) + "_" + str(
+        #         target_partition) + ".nnet 0 ./input.json")
 
-            # Saving obtained partitions
-            with open('splits.json') as json_file:
-                analysis = json.load(json_file)
-            reach, no_reach = [], []
-            for i in range(len(analysis['reach']['upper'])):
-                inf = [float(j) for j in analysis['reach']['lower'][i]]
-                sup = [float(j) for j in analysis['reach']['upper'][i]]
-                reach += [ndInterval(self.state_dim, inf[:self.state_dim], sup[:self.state_dim])]
-            for i in range(len(analysis['no_reach']['upper'])):
-                inf = [float(j) for j in analysis['no_reach']['lower'][i]]
-                sup = [float(j) for j in analysis['no_reach']['upper'][i]]
-                no_reach += [ndInterval(self.state_dim, inf[:self.state_dim], sup[:self.state_dim])]
+        #     # Saving obtained partitions
+        #     with open('splits.json') as json_file:
+        #         analysis = json.load(json_file)
+        #     reach, no_reach = [], []
+        #     for i in range(len(analysis['reach']['upper'])):
+        #         inf = [float(j) for j in analysis['reach']['lower'][i]]
+        #         sup = [float(j) for j in analysis['reach']['upper'][i]]
+        #         reach += [ndInterval(self.state_dim, inf[:self.state_dim], sup[:self.state_dim])]
+        #     for i in range(len(analysis['no_reach']['upper'])):
+        #         inf = [float(j) for j in analysis['no_reach']['lower'][i]]
+        #         sup = [float(j) for j in analysis['no_reach']['upper'][i]]
+        #         no_reach += [ndInterval(self.state_dim, inf[:self.state_dim], sup[:self.state_dim])]
 
         ndInterval.search_merge(reach)
         ndInterval.search_merge(no_reach)
         
         if reach:
+            for r in reach:
+                test = self.test_reach(start_partition, target_partition, r, replay_buffer)
+                if not test:
+                    reach.remove(r)
+                    no_reach.append(r)
+        if reach:
             self.graph_update(start_partition, target_partition, reach, no_reach, replay_buffer)
 
+
+    def test_reach(self, start_partition, target_partition, reach, replay_buffer):
+        x, gs, y, gt, rl, rh = replay_buffer.target_sample(start_partition, target_partition, len(replay_buffer))
+        check = [state for state in x if state in reach]
+        return len(check) > 0
 
     def build_graph(self, replay_buffer, reward=-100):
         x, y, sg, u, r, d, _, _ = replay_buffer.sample(len(replay_buffer.storage[0]))
