@@ -338,5 +338,5 @@ def write_stats(stats):
 
 def reachability_analysis(network, input, output, alg):
     R = ReachabilityAnalysis(alg, input, output, network)
-    partitions = R.Reachability(0.01, 0.7, R.input, R.output, compute_error=True)
+    partitions = R.Reachability(0.1, 0.5, R.input, R.output, compute_error=True)
     return partitions

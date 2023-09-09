@@ -128,6 +128,7 @@ class Boss(object):
         self.total_steps = defaultdict(lambda: 0)
         self.high_steps = defaultdict(lambda: 0)
         self.unsafe = []
+        self.splits = []
     
     def identify_goal(self, goal):
         i = -1
@@ -312,7 +313,6 @@ class Boss(object):
         if reach:
             self.graph_update(start_partition, target_partition, reach, no_reach, replay_buffer)
 
-
     def test_reach(self, start_partition, target_partition, reach, replay_buffer):
         x, gs, y, gt, rl, rh = replay_buffer.target_sample(start_partition, target_partition, len(replay_buffer))
         check = [state for state in x if state in reach]
@@ -341,6 +341,7 @@ class Boss(object):
             if self.unsafe[i][1] == start_partition:
                 self.unsafe.append([self.unsafe[i][0], target_partition]) 
         if reach:
+            self.splits.append(start_partition)
             if self.policy == 'Q-learning':
                 size_G = len(self.G)
                 size_reach = len(reach) - 1 
@@ -378,6 +379,7 @@ class Boss(object):
 
             if len(reach) > 1:
                 for i in range(1, len(reach)):
+                    self.splits.append(len(self.G) - 1)
                     self.G.append(copy.deepcopy(reach[i]))
                     self.automaton.add_node(len(self.G) - 1)
                     self.automaton.add_edge(len(self.G) - 1, target_partition)
@@ -402,6 +404,7 @@ class Boss(object):
                     #     self.automaton.add_edge(len(self.G) - 1, j, reward=-10)
             if no_reach:
                 for i in range(len(no_reach)):
+                    self.splits.append(len(self.G) - 1)
                     self.G.append(copy.deepcopy(no_reach[i]))
                     self.automaton.add_node(len(self.G) - 1)
                     # self.automaton.add_edge(len(self.G) - 1, start_partition)
@@ -437,6 +440,7 @@ class Boss(object):
                 and self.high_steps[(goal_pair[0], 
                                      goal_pair[1])] > min_steps \
                 and goal_pair[0] != goal_pair[1] \
+                and not goal_pair[0] in self.splits \
                 and not nx.has_path(self.automaton, source=goal_pair[0], target=goal_pair[1]) :
                 
                 self.split(forward_model, start_partition=goal_pair[0], target_partition=goal_pair[1], replay_buffer=replay_buffer)
