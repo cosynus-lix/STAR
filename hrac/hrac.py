@@ -316,7 +316,7 @@ class Boss(object):
     def test_reach(self, start_partition, target_partition, reach, replay_buffer):
         x, gs, y, gt, rl, rh = replay_buffer.target_sample(start_partition, target_partition, len(replay_buffer))
         check = [state for state in x if state in reach]
-        return len(check) > 0
+        return len(check) > 100
 
     def build_graph(self, replay_buffer, reward=-100):
         x, y, sg, u, r, d, _, _ = replay_buffer.sample(len(replay_buffer.storage[0]))
