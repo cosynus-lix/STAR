@@ -118,7 +118,7 @@ def evaluate_policy_gara(env, env_name, goal_dim, grid, boss_policy, manager_pol
                     start_partition = np.array(boss_policy.G[start_partition_idx].inf + boss_policy.G[start_partition_idx].sup)
                     target_partition_idx = boss_policy.select_partition(start_partition_idx, epsilon=0, goal=goal)
                     if target_partition_idx == goal_partition and goal_dim == goal.shape[0]:
-                        target_partition_interval = utils.ndInterval(2, inf=[goal[0]-1, goal[1]-1], sup=[goal[0]+1, goal[1]+1])
+                        target_partition_interval = utils.ndInterval(goal_dim, inf=[goal[i]-1 for i in range(goal_dim)], sup=[goal[i]+1 for i in range(goal_dim)])
                     elif target_partition_idx == goal_partition and goal_dim != goal.shape[0]:
                         target_partition_interval = utils.ndInterval(goal_dim, inf=[goal[0]-1, goal[1]-1]+boss_policy.G[goal_partition].inf[2:], sup=[goal[0]+1, goal[1]+1]+boss_policy.G[goal_partition].sup[2:])
                     else:
@@ -732,8 +732,14 @@ def run_gara(args):
     else:
         raise NotImplementedError
 
-    # state_dims = [0,1,15,16]
-    state_dims = [0,1,3,4,5]
+    if args.env_name in ["AntMaze"]:
+        state_dims = [0,1,15,16]
+    elif args.env_name in ["AntMazeCam"]:
+        state_dims = [0,1,3,4,5]
+    elif args.env_name in ["AntFall"]:    
+        state_dims = [0,1,2]
+    else:
+        state_dims = None
     if state_dims:
         low = np.array((-10, -10, -0.5, -1, -1, -1, -1,
                 -0.5, -0.3, -0.5, -0.3, -0.5, -0.3, -0.5, -0.3,-5,-5,-5,
@@ -811,25 +817,28 @@ def run_gara(args):
 
     g_low = [-4, -4]
     g_high = [20, 20]
-
-    # G_init = [utils.ndInterval(goal_dim, inf=[-4,-4], sup=[8,8]),
-    #           utils.ndInterval(goal_dim, inf=[8,-4], sup=[20,8]),
-    #           utils.ndInterval(goal_dim, inf=[8,8], sup=[20,20]),
-    #           utils.ndInterval(goal_dim, inf=[0,8], sup=[8,20])
-    #           ]
     
-    # G_init = [utils.ndInterval(goal_dim, inf=[-4,-4]+states_l[2:4], sup=[8,8]+states_u[2:4]),
-    #           utils.ndInterval(goal_dim, inf=[8,-4]+states_l[2:4], sup=[20,8]+states_u[2:4]),
-    #           utils.ndInterval(goal_dim, inf=[8,8]+states_l[2:4], sup=[20,20]+states_u[2:4]),
-    #           utils.ndInterval(goal_dim, inf=[0,8]+states_l[2:4], sup=[8,20]+states_u[2:4])
-    #           ]
-    
-    G_init = [utils.ndInterval(goal_dim, inf=[0,0]+list(low[state_dims[2:]]), sup=[8,8]+list(high[state_dims[2:]])),
-              utils.ndInterval(goal_dim, inf=[8,0]+list(low[state_dims[2:]]), sup=[20,8]+list(high[state_dims[2:]])),
-              utils.ndInterval(goal_dim, inf=[8,8]+list(low[state_dims[2:]]), sup=[20,20]+list(high[state_dims[2:]])),
-              utils.ndInterval(goal_dim, inf=[0,8]+list(low[state_dims[2:]]), sup=[8,20]+list(high[state_dims[2:]]))
-              ]
-    
+    if args.env_name in ["AntMaze", "AntMazeCam"] and state_dims:
+        G_init = [utils.ndInterval(goal_dim, inf=[0,0]+list(low[state_dims[2:]]), sup=[8,8]+list(high[state_dims[2:]])),
+                utils.ndInterval(goal_dim, inf=[8,0]+list(low[state_dims[2:]]), sup=[20,8]+list(high[state_dims[2:]])),
+                utils.ndInterval(goal_dim, inf=[8,8]+list(low[state_dims[2:]]), sup=[20,20]+list(high[state_dims[2:]])),
+                utils.ndInterval(goal_dim, inf=[0,8]+list(low[state_dims[2:]]), sup=[8,20]+list(high[state_dims[2:]]))
+                ]
+    elif args.env_name in ["AntPush"]:
+        G_init = [utils.ndInterval(goal_dim, inf=[-8,0], sup=[20,8]),
+                utils.ndInterval(goal_dim, inf=[-8,0], sup=[20,8]),
+                utils.ndInterval(goal_dim, inf=[8,8], sup=[20,16]),
+                utils.ndInterval(goal_dim, inf=[0,8], sup=[8,16]),
+                utils.ndInterval(goal_dim, inf=[0,16], sup=[8,20]),
+                ]
+        
+    elif args.env_name in ["AntFall"] and state_dims:
+        G_init = [utils.ndInterval(goal_dim, inf=[-8,0,0], sup=[4,16,5]),
+                utils.ndInterval(goal_dim, inf=[4,0,0], sup=[16,16,5]),
+                utils.ndInterval(goal_dim, inf=[-8,16,0], sup=[4,32,5]),
+                utils.ndInterval(goal_dim, inf=[4,16,0], sup=[16,32,5])
+                ]
+        
     resolution = 24
     grid = np.zeros((resolution, resolution))
 
@@ -841,6 +850,11 @@ def run_gara(args):
         reachability_algorithm=args.reach_algo,
         goal_cond=goal_cond,
         mem_capacity=args.boss_batch_size)
+    
+    if args.env_name in ["AntPush"]:
+        boss_policy.automaton.add_edge(0,3)
+        boss_policy.automaton.add_edge(3,2)
+        boss_policy.automaton.add_edge(2,4)
     
     controller_policy = hrac.Controller(
         state_dim=state_dim,
@@ -1044,7 +1058,7 @@ def run_gara(args):
             
             target_partition_idx = boss_policy.select_partition(start_partition_idx, epsilon=0, goal=goal)
             if target_partition_idx == goal_partition and goal_dim == goal.shape[0]:
-                target_partition_interval = utils.ndInterval(2, inf=[goal[0]-1, goal[1]-1], sup=[goal[0]+1, goal[1]+1])
+                target_partition_interval = utils.ndInterval(goal_dim, inf=[goal[i]-1 for i in range(goal_dim)], sup=[goal[i]+1 for i in range(goal_dim)])
             elif target_partition_idx == goal_partition and goal_dim != goal.shape[0]:
                 target_partition_interval = utils.ndInterval(goal_dim, inf=[goal[0]-1, goal[1]-1]+boss_policy.G[goal_partition].inf[2:], sup=[goal[0]+1, goal[1]+1]+boss_policy.G[goal_partition].sup[2:])
             else:
@@ -1141,7 +1155,7 @@ def run_gara(args):
             epsilon = max(epsilon, args.boss_eps_min) 
             target_partition_idx = boss_policy.select_partition(start_partition_idx, epsilon, goal)
             if target_partition_idx == goal_partition and goal_dim == goal.shape[0]:
-                target_partition_interval = utils.ndInterval(2, inf=[goal[0]-1, goal[1]-1], sup=[goal[0]+1, goal[1]+1])
+                target_partition_interval = utils.ndInterval(goal_dim, inf=[goal[i]-1 for i in range(goal_dim)], sup=[goal[i]+1 for i in range(goal_dim)])
             elif target_partition_idx == goal_partition and goal_dim != goal.shape[0]:
                 target_partition_interval = utils.ndInterval(goal_dim, inf=[goal[0]-1, goal[1]-1]+boss_policy.G[goal_partition].inf[2:], sup=[goal[0]+1, goal[1]+1]+boss_policy.G[goal_partition].sup[2:])
             else:
