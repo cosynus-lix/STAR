@@ -179,6 +179,95 @@ def evaluate_policy_gara(env, env_name, goal_dim, grid, boss_policy, manager_pol
         env.evaluate = False
         return avg_reward, avg_controller_rew, avg_step_count, avg_env_finish, grid
 
+def evaluate_policy_gara_old(env, env_name, goal_dim, grid, boss_policy, controller_policy,
+                    calculate_controller_reward, ctrl_rew_scale, boss_propose_frequency=30,
+                    eval_idx=0, eval_episodes=5):
+    print("Starting evaluation number {}...".format(eval_idx))
+    env.evaluate = True
+    resolution = 24
+    g_low = [-4, -4]
+    g_high = [20, 20]
+    # print(boss_policy.Q[:,3,:])
+    with torch.no_grad():
+        avg_reward = 0.
+        avg_controller_rew = 0.
+        global_steps = 0
+        goals_achieved = 0
+        for eval_ep in range(eval_episodes):
+            obs = env.reset()
+            goal = obs["desired_goal"]
+            if goal is not None:
+                goal_partition = boss_policy.identify_goal(goal)
+            else:
+                goal_partition = None
+
+            state = obs["observation"]
+            new_state = state
+            start_state = state
+            start_partition_idx = boss_policy.identify_partition(state)
+            start_partition = np.array(boss_policy.G[start_partition_idx].inf + boss_policy.G[start_partition_idx].sup)
+            done = False
+            step_count = 0
+            env_goals_achieved = 0
+            while not done:
+                if step_count % boss_propose_frequency == 0:
+                    start_partition_idx = boss_policy.identify_partition(state)
+                    start_partition = np.array(boss_policy.G[start_partition_idx].inf + boss_policy.G[start_partition_idx].sup)
+                    target_partition_idx = boss_policy.select_partition(start_partition_idx, epsilon=0, goal=goal)
+                    if target_partition_idx == goal_partition and goal_dim == goal.shape[0]:
+                        target_partition_interval = utils.ndInterval(goal_dim, inf=[goal[i]-1 for i in range(goal_dim)], sup=[goal[i]+1 for i in range(goal_dim)])
+                    elif target_partition_idx == goal_partition and goal_dim != goal.shape[0]:
+                        target_partition_interval = utils.ndInterval(goal_dim, inf=[goal[0]-1, goal[1]-1]+boss_policy.G[goal_partition].inf[2:], sup=[goal[0]+1, goal[1]+1]+boss_policy.G[goal_partition].sup[2:])
+                    else:
+                        target_partition_interval = boss_policy.G[target_partition_idx]
+                    target_partition = np.array(target_partition_interval.inf + target_partition_interval.sup)
+
+                    if start_partition_idx == 3:
+                        print("ant in part 3" + "targeting part" + str(target_partition_idx))
+                    if start_partition_idx == 2:
+                        print("ant in part 2" + "targeting part" + str(target_partition_idx))
+                    if start_partition_idx == 1:
+                        print("ant in part 1" + "targeting part" + str(target_partition_idx))
+
+                    subgoal = target_partition
+
+                step_count += 1
+                global_steps += 1
+                action = controller_policy.select_action(state, subgoal, evaluation=True)
+                new_obs, reward, done, _ = env.step(action)
+                if env_name != "AntGather" and env.success_fn(reward):
+                    env_goals_achieved += 1
+                    goals_achieved += 1
+                    done = True
+
+                goal = new_obs["desired_goal"]
+                new_state = new_obs["observation"]
+
+                subgoal = controller_policy.subgoal_transition(state, subgoal, new_state)
+                
+                avg_reward += reward
+                avg_controller_rew += calculate_controller_reward(state, subgoal, new_state, ctrl_rew_scale)
+
+                state = new_state
+
+        avg_reward /= eval_episodes
+        avg_controller_rew /= global_steps
+        avg_step_count = global_steps / eval_episodes
+        avg_env_finish = goals_achieved / eval_episodes
+
+        print("---------------------------------------")
+        print("Evaluation over {} episodes:\nAvg Ctrl Reward: {:.3f}".format(eval_episodes, avg_controller_rew))
+        if env_name == "AntGather":
+            print("Avg reward: {:.1f}".format(avg_reward))
+        else:
+            print("Goals achieved: {:.1f}%".format(100*avg_env_finish))
+        print("Avg Steps to finish: {:.1f}".format(avg_step_count))
+        print("---------------------------------------")
+
+        env.evaluate = False
+        return avg_reward, avg_controller_rew, avg_step_count, avg_env_finish, grid
+
+
 def evaluate_policy_hiro(env, env_name, grid, boss_policy, manager_policy, controller_policy,
                     calculate_controller_reward, ctrl_rew_scale, boss_propose_frequency=50,
                     manager_propose_frequency=10, eval_idx=0, eval_episodes=5):
@@ -1076,6 +1165,8 @@ def run_gara(args):
             prev_target_partition_idx = target_partition_idx
             prev_target_partition = target_partition
 
+            
+
             subgoal = manager_policy.sample_goal(state, target_partition)
 
             if not args.absolute_goal and state_dims:
@@ -1104,7 +1195,7 @@ def run_gara(args):
         next_state = next_tup["observation"]
 
         controller_reward = calculate_controller_reward(state, subgoal, next_state, args.ctrl_rew_scale)
-        manager_reward = 4 * get_manager_reward(next_state[:2], target_partition_interval)
+        manager_reward = 4 * get_manager_reward(next_state[state_dims], target_partition_interval)
         boss_reward = max(ext_reward, boss_reward)
 
         reached_partition_idx = boss_policy.identify_partition(state)
@@ -1577,4 +1668,410 @@ def run_hiro(args):
     l_bound.to_csv(os.path.join("./results", "states_l"+".csv"), float_format="%.4f", index=False)
     u_bound = pd.DataFrame(states_u)
     u_bound.to_csv(os.path.join("./results", "states_u"+".csv"), float_format="%.4f", index=False)
+    print("Training finished.")
+
+def run_gara_old(args):
+    
+    if not os.path.exists("./results"):
+        os.makedirs("./results")
+    if args.save_models and not os.path.exists("./models"):
+        os.makedirs("./models")
+    if not os.path.exists(args.log_dir):
+        os.makedirs(args.log_dir)
+    if not os.path.exists(os.path.join(args.log_dir, args.algo)):
+        os.makedirs(os.path.join(args.log_dir, args.algo))
+    output_dir = os.path.join(args.log_dir, args.algo)
+    print("Logging in {}".format(output_dir))
+
+    if args.env_name == "AntGather":
+        env = GatherEnv(create_gather_env(args.env_name, args.seed), args.env_name)
+        env.seed(args.seed)   
+    elif args.env_name in ["AntMaze", "AntMazeSparse", "AntPush", "AntFall", "AntMazeCam"]:
+        env = EnvWithGoal(create_maze_env(args.env_name, args.seed), args.env_name)
+        env.seed(args.seed)
+    else:
+        raise NotImplementedError
+
+    if args.env_name in ["AntMaze"]:
+        state_dims = None
+    elif args.env_name in ["AntMazeCam"]:
+        state_dims = [0,1,3,4,5]
+    elif args.env_name in ["AntFall"]:    
+        state_dims = [0,1,2]
+    else:
+        state_dims = None
+    if state_dims:
+        low = np.array((-10, -10, -0.5, -1, -1, -1, -1,
+                -0.5, -0.3, -0.5, -0.3, -0.5, -0.3, -0.5, -0.3,-5,-5,-5,
+                -8,-8,-7,-8,-7,-8,-9,-8,-9,-8,-7,0.0000))
+    else:
+        low = np.array((-10, -10, -0.5, -1, -1, -1, -1,
+                    -0.5, -0.3, -0.5, -0.3, -0.5, -0.3, -0.5, -0.3))
+        
+    max_action = float(env.action_space.high[0])
+    policy_noise = 0.2
+    noise_clip = 0.5
+    high = -low
+
+    man_scale = (high - low) / 2
+    if state_dims:
+        new_man_scale = man_scale[state_dims]   
+    else:
+        new_man_scale = man_scale 
+
+    epsilon = args.boss_eps
+    
+    if state_dims:
+        controller_goal_dim = len(state_dims)
+    elif args.env_name == "AntFall":
+        controller_goal_dim = 3
+    else:
+        controller_goal_dim = 2
+
+    if args.absolute_goal:
+        man_scale[0] = 30
+        man_scale[1] = 30
+        no_xy = False
+    else:
+        no_xy = True
+    action_dim = env.action_space.shape[0]
+
+    obs = env.reset()
+
+    goal = obs["desired_goal"]
+    state = obs["observation"]
+
+    writer = SummaryWriter(log_dir=os.path.join(args.log_dir, args.algo))
+    torch.cuda.set_device(args.gid)
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    file_name = "{}_{}_{}_{}".format(args.env_name, "gara", args.exp, args.seed)
+    output_data = {"frames": [], "reward": [], "dist": []}    
+
+    torch.manual_seed(args.seed)
+    np.random.seed(args.seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+
+    state_dim = state.shape[0]
+    if args.env_name in ["AntMaze", "AntPush", "AntFall", "AntMazeCam"] and not state_dims:
+        goal_dim = goal.shape[0]
+        goal_cond = True
+    elif args.env_name in ["AntMaze", "AntPush", "AntFall", "AntMazeCam"] and state_dims:
+        goal_dim = len(state_dims)
+        goal_cond = True
+    elif state_dims:
+        goal_dim = len(state_dims)
+        goal_cond = True
+    else:
+        goal_dim = args.boss_region_dim
+        goal_cond = False
+
+    g_low = [-4, -4]
+    g_high = [20, 20]
+    
+    if args.env_name in ["AntMaze", "AntMazeCam"] and state_dims:
+        G_init = [utils.ndInterval(goal_dim, inf=[0,0]+list(low[state_dims[2:]]), sup=[8,8]+list(high[state_dims[2:]])),
+                utils.ndInterval(goal_dim, inf=[8,0]+list(low[state_dims[2:]]), sup=[20,8]+list(high[state_dims[2:]])),
+                utils.ndInterval(goal_dim, inf=[8,8]+list(low[state_dims[2:]]), sup=[20,20]+list(high[state_dims[2:]])),
+                utils.ndInterval(goal_dim, inf=[0,8]+list(low[state_dims[2:]]), sup=[8,20]+list(high[state_dims[2:]]))
+                ]
+    elif args.env_name in ["AntMaze", "AntMazeCam"] and not state_dims:
+        G_init = [utils.ndInterval(goal_dim, inf=[0,0], sup=[8,8]),
+                utils.ndInterval(goal_dim, inf=[8,0], sup=[20,8]),
+                utils.ndInterval(goal_dim, inf=[8,8], sup=[20,20]),
+                utils.ndInterval(goal_dim, inf=[0,8], sup=[8,20])
+                ]
+    elif args.env_name in ["AntPush"]:
+        G_init = [utils.ndInterval(goal_dim, inf=[-8,0], sup=[20,8]),
+                utils.ndInterval(goal_dim, inf=[-8,0], sup=[20,8]),
+                utils.ndInterval(goal_dim, inf=[8,8], sup=[20,16]),
+                utils.ndInterval(goal_dim, inf=[0,8], sup=[8,16]),
+                utils.ndInterval(goal_dim, inf=[0,16], sup=[8,20]),
+                ]
+        
+    elif args.env_name in ["AntFall"] and state_dims:
+        G_init = [utils.ndInterval(goal_dim, inf=[-8,0,0], sup=[4,16,5]),
+                utils.ndInterval(goal_dim, inf=[4,0,0], sup=[16,16,5]),
+                utils.ndInterval(goal_dim, inf=[-8,16,0], sup=[4,32,5]),
+                utils.ndInterval(goal_dim, inf=[4,16,0], sup=[16,32,5])
+                ]
+        
+    resolution = 24
+    grid = np.zeros((resolution, resolution))
+
+    boss_policy = hrac.Boss(
+        G_init=G_init,
+        state_dim=state_dim,
+        goal_dim=goal_dim,
+        policy=args.boss_policy,
+        reachability_algorithm=args.reach_algo,
+        goal_cond=goal_cond,
+        mem_capacity=args.boss_batch_size)
+    
+    controller_policy = hrac.Controller(
+        state_dim=state_dim,
+        goal_dim=2*goal_dim,
+        action_dim=action_dim,
+        max_action=max_action,
+        actor_lr=args.ctrl_act_lr,
+        critic_lr=args.ctrl_crit_lr,
+        no_xy=no_xy,
+        absolute_goal=args.absolute_goal,
+        policy_noise=policy_noise,
+        noise_clip=noise_clip
+    )
+
+    if state_dims:
+        calculate_controller_reward = get_reward_function(
+            state_dims, absolute_goal=args.absolute_goal, binary_reward=args.binary_int_reward)
+    else:
+        calculate_controller_reward = get_reward_function(
+            controller_goal_dim, absolute_goal=args.absolute_goal, binary_reward=args.binary_int_reward)
+        
+    if args.noise_type == "ou":
+        man_noise = utils.OUNoise(state_dim, sigma=args.man_noise_sigma)
+        ctrl_noise = utils.OUNoise(action_dim, sigma=args.ctrl_noise_sigma)
+
+    elif args.noise_type == "normal":
+        man_noise = utils.NormalNoise(sigma=args.man_noise_sigma)
+        ctrl_noise = utils.NormalNoise(sigma=args.ctrl_noise_sigma)
+
+    boss_buffer = utils.PartitionBuffer(maxsize=args.boss_buffer_size)
+    controller_buffer = utils.ReplayBuffer(maxsize=args.ctrl_buffer_size)
+
+    # Initialize forward model
+    fwd_model = ForwardModel(state_dim, 2*goal_dim, args.fwd_hidden_dim, args.lr_fwd)
+
+    if args.load:
+        try:
+            controller_policy.load("./models")
+            print("Loaded successfully.")
+            just_loaded = True
+        except Exception as e:
+            just_loaded = False
+            print(e, "Loading failed.")
+    else:
+        just_loaded = False
+
+    # Logging Parameters
+    total_timesteps = 0
+    timesteps_since_eval = 0
+    timesteps_since_boss = 0
+    timesteps_since_manager = 0
+    episode_timesteps = 0
+    timesteps_since_partition = 0
+    timesteps_since_subgoal = 0
+    episode_num = 0
+    done = True
+    fwd_errors = defaultdict(lambda: [])
+    boss_reward = -100
+    # fwd_errors = []
+    evaluations = []
+
+    # Train
+    while total_timesteps < args.max_timesteps:
+        if done:
+            if total_timesteps != 0 and not just_loaded:
+                if episode_num % 10 == 0:
+                    print("Episode {}".format(episode_num))
+                # Train controller
+                ctrl_act_loss, ctrl_crit_loss = controller_policy.train(controller_buffer, episode_timesteps,
+                    batch_size=args.ctrl_batch_size, discount=args.ctrl_discount, tau=args.ctrl_soft_sync_rate)
+                if episode_num % 10 == 0:
+                    print("Controller actor loss: {:.3f}".format(ctrl_act_loss))
+                    print("Controller critic loss: {:.3f}".format(ctrl_crit_loss))
+                writer.add_scalar("data/controller_actor_loss", ctrl_act_loss, total_timesteps)
+                writer.add_scalar("data/controller_critic_loss", ctrl_crit_loss, total_timesteps)
+
+                writer.add_scalar("data/controller_ep_rew", episode_reward, total_timesteps)
+                writer.add_scalar("data/manager_ep_rew", manager_transition[4], total_timesteps)
+        
+                # Train Boss
+                if timesteps_since_boss >= args.train_boss_freq:
+                    timesteps_since_boss = 0
+                    if len(boss_buffer) >= args.boss_buffer_min_size:
+                        for goal_pair in transition_list:
+                            Gs = np.array(boss_policy.G[goal_pair[0]].inf + boss_policy.G[goal_pair[0]].sup)
+                            Gt = np.array(boss_policy.G[goal_pair[1]].inf + boss_policy.G[goal_pair[1]].sup)
+                            utils.train_forward_model(fwd_model, boss_buffer, Gs, Gt, n_epochs=args.fwd_training_epochs, \
+                                                    batch_size=args.fwd_batch_size, device=device, verbose=False) 
+                            fwd_errors[(goal_pair[0], goal_pair[1])].append(fwd_model.measure_error(boss_buffer, args.fwd_batch_size, goal_pair[0], goal_pair[1]))
+                            if len(fwd_errors[(goal_pair[0], goal_pair[1])]) > 1 and fwd_errors[(goal_pair[0], goal_pair[1])][-1] - fwd_errors[(goal_pair[0], goal_pair[1])][-2] < 0.001:
+                                boss_policy.train(fwd_model, goal, [goal_pair], args.boss_buffer_min_size, batch_size=args.boss_batch_size, replay_buffer=boss_buffer)
+
+                    writer.add_scalar("data/Boss_nbr_part", len(boss_policy.G), total_timesteps)
+                    writer.add_scalar("data/Boss_eps", epsilon, total_timesteps)
+
+                    if episode_num % 10 == 0:
+                        print("Boss partitions number : {:.3f}".format(len(boss_policy.G)))
+                        print("Boss epsilon: {:.3f}".format(epsilon))
+
+                # Evaluate
+                if timesteps_since_eval >= args.eval_freq:
+                    timesteps_since_eval = 0
+                    avg_ep_rew, avg_controller_rew, avg_steps, avg_env_finish, grid = evaluate_policy_gara_old(env, args.env_name, goal_dim, grid, boss_policy, controller_policy,
+                            calculate_controller_reward, args.ctrl_rew_scale, args.boss_propose_freq, len(evaluations))
+
+                    writer.add_scalar("eval/avg_ep_rew", avg_ep_rew, total_timesteps)
+                    writer.add_scalar("eval/avg_controller_rew", avg_controller_rew, total_timesteps)
+
+                    evaluations.append([avg_ep_rew, avg_controller_rew, avg_steps])
+                    output_data["frames"].append(total_timesteps)
+                    if args.env_name == "AntGather":
+                        output_data["reward"].append(avg_ep_rew)
+                    else:
+                        output_data["reward"].append(avg_env_finish)
+                        writer.add_scalar("eval/avg_steps_to_finish", avg_steps, total_timesteps)
+                        writer.add_scalar("eval/perc_env_goal_achieved", avg_env_finish, total_timesteps)
+                    output_data["dist"].append(-avg_controller_rew)
+
+                    if args.save_models:
+                        controller_policy.save("./models", args.env_name, args.algo)
+                        boss_policy.save("./models", args.env_name, args.algo)
+                
+                if [start_partition_idx, target_partition_idx] not in transition_list:
+                    transition_list.append([start_partition_idx, target_partition_idx])
+                boss_policy.high_steps[(start_partition_idx, target_partition_idx)] += 1
+                boss_buffer.add((start_state, start_partition, state, reached_partition, controller_reward, boss_reward))
+            
+
+            if total_timesteps > 0:
+                boss_policy.policy_update(start_partition_idx, target_partition_idx, reached_partition_idx, boss_reward, done, goal, args.boss_discount_factor, args.boss_alpha)
+            
+            obs = env.reset()
+            goal = obs["desired_goal"]
+            if goal_cond:
+                goal_partition = boss_policy.identify_goal(goal)
+            else:
+                goal_partition = None
+
+            transition_list = []
+            state = obs["observation"]
+            start_state = state
+            start_partition_idx = boss_policy.identify_partition(state)
+            start_partition = np.array(boss_policy.G[start_partition_idx].inf + boss_policy.G[start_partition_idx].sup)
+            prev_start_partition_idx = start_partition_idx
+            prev_start_partition = start_partition
+            done = False
+            episode_reward = 0
+            episode_timesteps = 0
+            just_loaded = False
+            episode_num += 1
+            
+            target_partition_idx = boss_policy.select_partition(start_partition_idx, epsilon=0, goal=goal)
+            if target_partition_idx == goal_partition and goal_dim == goal.shape[0]:
+                target_partition_interval = utils.ndInterval(goal_dim, inf=[goal[i]-1 for i in range(goal_dim)], sup=[goal[i]+1 for i in range(goal_dim)])
+            elif target_partition_idx == goal_partition and goal_dim != goal.shape[0]:
+                target_partition_interval = utils.ndInterval(goal_dim, inf=[goal[0]-1, goal[1]-1]+boss_policy.G[goal_partition].inf[2:], sup=[goal[0]+1, goal[1]+1]+boss_policy.G[goal_partition].sup[2:])
+            else:
+                target_partition_interval = boss_policy.G[target_partition_idx]
+            target_partition = np.array(target_partition_interval.inf + target_partition_interval.sup)
+            prev_target_partition_idx = target_partition_idx
+            prev_target_partition = target_partition
+
+            subgoal = target_partition
+
+            timesteps_since_subgoal = 0
+
+        action = controller_policy.select_action(state, subgoal)
+        action = ctrl_noise.perturb_action(action, -max_action, max_action)
+        action_copy = action.copy()
+
+        next_tup, ext_reward, done, _ = env.step(action_copy)
+
+        next_goal = next_tup["desired_goal"]
+        next_state = next_tup["observation"]
+
+        controller_reward = get_manager_reward(next_state[state_dims], target_partition_interval)
+        boss_reward = max(ext_reward, boss_reward)
+
+        reached_partition_idx = boss_policy.identify_partition(state)
+        reached_partition = np.array(boss_policy.G[reached_partition_idx].inf + boss_policy.G[reached_partition_idx].sup)
+        
+        if transition_list and total_timesteps > args.boss_propose_freq and total_timesteps % args.boss_propose_freq != 0:
+            s = controller_buffer.storage[0][-args.boss_propose_freq - 1]
+            if reached_partition_idx == prev_target_partition_idx:
+                boss_buffer.add((s, prev_start_partition, state, reached_partition, controller_reward, boss_reward))
+                boss_policy.high_steps[(prev_start_partition_idx, reached_partition_idx)] += 1
+
+
+        subgoal = controller_policy.subgoal_transition(state, subgoal, next_state)
+
+        controller_goal = subgoal
+        episode_reward += controller_reward
+
+        if args.inner_dones: 
+            ctrl_done = done or timesteps_since_subgoal % args.boss_propose_freq == 0
+        else:
+            ctrl_done = done
+
+        controller_buffer.add(
+            (state, next_state, controller_goal, action, controller_reward, float(ctrl_done), [], []))
+
+        state = next_state
+        goal = next_goal
+
+        episode_timesteps += 1
+        total_timesteps += 1
+        timesteps_since_eval += 1
+        timesteps_since_boss += 1
+        timesteps_since_partition += 1
+        timesteps_since_manager += 1
+        timesteps_since_subgoal += 1
+
+        if timesteps_since_partition % args.boss_propose_freq == 0:
+            boss_policy.policy_update(start_partition_idx, target_partition_idx, reached_partition_idx, boss_reward, done, goal, args.boss_discount_factor, args.boss_alpha)
+            prev_start_partition_idx = start_partition_idx
+            prev_start_partition = start_partition
+            prev_target_partition_idx = target_partition_idx  
+            prev_target_partition = target_partition
+            epsilon *= args.boss_eps_decay
+            epsilon = max(epsilon, args.boss_eps_min)
+            boss_buffer.add((start_state, start_partition, state, reached_partition, controller_reward, boss_reward))
+            start_state = state
+            start_partition_idx = boss_policy.identify_partition(state)
+            start_partition = np.array(boss_policy.G[start_partition_idx].inf + boss_policy.G[start_partition_idx].sup)
+            
+            epsilon -= 9e-7 * 2
+            epsilon = max(epsilon, args.boss_eps_min) 
+            target_partition_idx = boss_policy.select_partition(start_partition_idx, epsilon, goal)
+            if target_partition_idx == goal_partition and goal_dim == goal.shape[0]:
+                target_partition_interval = utils.ndInterval(goal_dim, inf=[goal[i]-1 for i in range(goal_dim)], sup=[goal[i]+1 for i in range(goal_dim)])
+            elif target_partition_idx == goal_partition and goal_dim != goal.shape[0]:
+                target_partition_interval = utils.ndInterval(goal_dim, inf=[goal[0]-1, goal[1]-1]+boss_policy.G[goal_partition].inf[2:], sup=[goal[0]+1, goal[1]+1]+boss_policy.G[goal_partition].sup[2:])
+            else:
+                target_partition_interval = boss_policy.G[target_partition_idx]
+            target_partition = np.array(target_partition_interval.inf + target_partition_interval.sup)
+
+            timesteps_since_partition = 0
+            if [start_partition_idx, target_partition_idx] not in transition_list:
+                transition_list.append([start_partition_idx, target_partition_idx]) 
+            boss_policy.high_steps[(start_partition_idx, target_partition_idx)] += 1   
+            boss_reward = -100
+        
+            timesteps_since_subgoal = 0
+            # manager_transition = [state, None, np.concatenate((target_partition,goal)), subgoal, 0, False, [state], []]
+            manager_transition = [state, None, target_partition, subgoal, 0, False, [state], []]
+
+    # Final evaluation
+    avg_ep_rew, avg_controller_rew, avg_steps, avg_env_finish, grid = evaluate_policy_gara_old(
+        env, args.env_name, goal_dim, grid, boss_policy, controller_policy, calculate_controller_reward,
+        args.ctrl_rew_scale, args.boss_propose_freq, len(evaluations))
+    utils.manager_mapping(grid, g_low, g_high, 'manager_gara_mapping.png')
+    evaluations.append([avg_ep_rew, avg_controller_rew, avg_steps])
+    output_data["frames"].append(total_timesteps)
+    if args.env_name == 'AntGather':
+        output_data["reward"].append(avg_ep_rew)
+    else:
+        output_data["reward"].append(avg_env_finish)
+    output_data["dist"].append(-avg_controller_rew)
+
+    if args.save_models:
+        controller_policy.save("./models", args.env_name, args.algo)
+        boss_policy.save("./models", args.env_name, args.algo)
+
+    writer.close()
+    output_df = pd.DataFrame(output_data)
+    output_df.to_csv(os.path.join("./results", file_name+".csv"), float_format="%.4f", index=False)
     print("Training finished.")

@@ -89,10 +89,14 @@ if __name__ == "__main__":
         args.man_rew_scale = 1.0
         if args.env_name == "AntGather":
             args.inner_dones = True
+    
+    if args.env_name == "AntFall":
+        args.boss_alpha = 0.005
 
     print('=' * 30)
     for key, val in vars(args).items():
         print('{}: {}'.format(key, val))
+
 
     for exp in range(5):
         args.exp = str(exp)
