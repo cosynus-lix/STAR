@@ -88,9 +88,8 @@ def evaluate_policy_gara(env, env_name, goal_dim, grid, boss_policy, manager_pol
     print("Starting evaluation number {}...".format(eval_idx))
     env.evaluate = True
     resolution = 24
-    g_low = [-4, -4]
+    g_low = [0, 0]
     g_high = [20, 20]
-    # print(boss_policy.Q[:,3,:])
     with torch.no_grad():
         avg_reward = 0.
         avg_controller_rew = 0.
@@ -912,7 +911,7 @@ def run_gara(args):
         goal_dim = args.boss_region_dim
         goal_cond = False
 
-    g_low = [-4, -4]
+    g_low = [0, 0]
     g_high = [20, 20]
     
     if args.env_name in ["AntMaze", "AntMazeCam"] and state_dims:
@@ -942,7 +941,7 @@ def run_gara(args):
                 utils.ndInterval(goal_dim, inf=[4,16,0], sup=[16,32,5])
                 ]
         
-    resolution = 24
+    resolution = 100
     grid = np.zeros((resolution, resolution))
 
     boss_policy = hrac.Boss(
@@ -1028,6 +1027,7 @@ def run_gara(args):
     episode_timesteps = 0
     timesteps_since_partition = 0
     timesteps_since_subgoal = 0
+    timesteps_since_map = 0
     episode_num = 0
     done = True
     fwd_errors = defaultdict(lambda: [])
@@ -1101,7 +1101,6 @@ def run_gara(args):
                     avg_ep_rew, avg_controller_rew, avg_steps, avg_env_finish, grid = evaluate_policy_gara(env, args.env_name, goal_dim, grid, boss_policy, manager_policy, controller_policy,
                             calculate_controller_reward, args.ctrl_rew_scale, args.boss_propose_freq, args.manager_propose_freq,
                             len(evaluations))
-                    utils.manager_mapping(grid, g_low, g_high, 'manager_gara_mapping.png')
 
                     writer.add_scalar("eval/avg_ep_rew", avg_ep_rew, total_timesteps)
                     writer.add_scalar("eval/avg_controller_rew", avg_controller_rew, total_timesteps)
@@ -1120,6 +1119,13 @@ def run_gara(args):
                         controller_policy.save("./models", args.env_name, args.algo)
                         manager_policy.save("./models", args.env_name, args.algo)
                         boss_policy.save("./models", args.env_name, args.algo)
+
+                # Heatmap
+                if timesteps_since_map >= 5000:
+                    utils.manager_mapping(grid, g_low, g_high, 'maps/manager_gara_mapping'+ str(total_timesteps / 5000 ) + '.png' )
+                    grid = np.zeros((resolution, resolution))
+                    boss_policy.save("./partitions", args.env_name , total_timesteps / 1e6 )
+                    timesteps_since_map = 0
                 
                 if [start_partition_idx, target_partition_idx] not in transition_list:
                     transition_list.append([start_partition_idx, target_partition_idx])
@@ -1195,7 +1201,10 @@ def run_gara(args):
         next_state = next_tup["observation"]
 
         controller_reward = calculate_controller_reward(state, subgoal, next_state, args.ctrl_rew_scale)
-        manager_reward = 4 * get_manager_reward(next_state[state_dims], target_partition_interval)
+        if state_dims:
+            manager_reward = 4 * get_manager_reward(next_state[state_dims], target_partition_interval)
+        else:    
+            manager_reward = 4 * get_manager_reward(next_state[:2], target_partition_interval)
         boss_reward = max(ext_reward, boss_reward)
 
         reached_partition_idx = boss_policy.identify_partition(state)
@@ -1235,6 +1244,7 @@ def run_gara(args):
         timesteps_since_partition += 1
         timesteps_since_manager += 1
         timesteps_since_subgoal += 1
+        timesteps_since_map += 1
 
         if timesteps_since_partition % args.boss_propose_freq == 0:
             boss_policy.policy_update(start_partition_idx, target_partition_idx, reached_partition_idx, boss_reward, done, goal, args.boss_discount_factor, args.boss_alpha)

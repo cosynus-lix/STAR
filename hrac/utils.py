@@ -499,7 +499,7 @@ class PartitionDataset(Data.Dataset):
 
 def manager_mapping(grid, g_low, g_high, file, resolution=100):
     """ plots a heatmap of the manager's subgoals and save it to a file """
-    ax = sns.heatmap(grid, cbar=False)
+    ax = sns.heatmap(grid, vmin=0, vmax= 100,cmap="rocket_r", cbar=False)
     ax.invert_yaxis()
     plt.savefig(file)
     plt.close()

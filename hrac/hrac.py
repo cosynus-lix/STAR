@@ -446,16 +446,15 @@ class Boss(object):
                 self.split(forward_model, start_partition=goal_pair[0], target_partition=goal_pair[1], replay_buffer=replay_buffer)
 
     
-    def save(self, dir, env_name, algo):
-        with open("{}/{}_{}_BossPartitions.pth".format(dir, env_name, algo), 'w', encoding='UTF8') as f:
+    def save(self, dir, env_name, time):
+        with open("{}/{}_{}_BossPartitions.pth".format(dir, env_name, time), 'w', encoding='UTF8') as f:
             # create the csv writer
             writer = csv.writer(f)
             for i in range(len(self.G)):
                 # write a row to the csv file
                 writer.writerow(self.G[i].inf + self.G[i].sup)
         f.close()
-        with open("{}/{}_{}_BossPartitions.gpickle".format(dir, env_name, algo), 'wb') as f:
-                pickle.dump(self.automaton, f)
+        
     
     def load(self, dir, env_name, algo):
         G = []
