@@ -9,7 +9,7 @@ if __name__ == "__main__":
     parser.add_argument("--eval_freq", default=5e3, type=float)
     parser.add_argument("--max_timesteps", default=5e6, type=float)
     parser.add_argument("--save_models", action="store_true")
-    parser.add_argument("--env_name", default="AntMazeCam", type=str)
+    parser.add_argument("--env_name", default="AntMaze", type=str)
     parser.add_argument("--load", default=False, type=bool)
     parser.add_argument("--log_dir", default="./logs", type=str)
     parser.add_argument("--no_correction", action="store_true")

@@ -87,7 +87,7 @@ def evaluate_policy_gara(env, env_name, goal_dim, grid, boss_policy, manager_pol
                     manager_propose_frequency=10, eval_idx=0, eval_episodes=5):
     print("Starting evaluation number {}...".format(eval_idx))
     env.evaluate = True
-    resolution = 24
+    resolution = 50
     g_low = [0, 0]
     g_high = [20, 20]
     with torch.no_grad():
@@ -941,7 +941,7 @@ def run_gara(args):
                 utils.ndInterval(goal_dim, inf=[4,16,0], sup=[16,32,5])
                 ]
         
-    resolution = 100
+    resolution = 50
     grid = np.zeros((resolution, resolution))
 
     boss_policy = hrac.Boss(
@@ -1121,10 +1121,10 @@ def run_gara(args):
                         boss_policy.save("./models", args.env_name, args.algo)
 
                 # Heatmap
-                if timesteps_since_map >= 5000:
-                    utils.manager_mapping(grid, g_low, g_high, 'maps/manager_gara_mapping'+ str(total_timesteps / 5000 ) + '.png' )
+                if timesteps_since_map >= 5e5:
+                    utils.manager_mapping(grid, g_low, g_high, 'maps/manager_gara_mapping'+ str(total_timesteps / 5e5 ) + '.png' )
                     grid = np.zeros((resolution, resolution))
-                    boss_policy.save("./partitions", args.env_name , total_timesteps / 1e6 )
+                    boss_policy.save("./partitions", args.env_name , total_timesteps / 5e5 )
                     timesteps_since_map = 0
                 
                 if [start_partition_idx, target_partition_idx] not in transition_list:
