@@ -17,7 +17,7 @@ RUN tar -xvzf julia-1.8.5-linux-x86_64.tar.gz
 RUN cp -r julia-1.8.5 /opt/
 RUN ln -s /opt/julia-1.8.5/bin/julia /usr/local/bin/julia
 
-RUN julia -e 'using Pkg; Pkg.add(url="https://github.com/MehdiZadem/NeuralVerification.jl")'
+# RUN julia -e 'using Pkg; Pkg.add(url="https://github.com/MehdiZadem/NeuralVerification.jl")'
 
 RUN julia -e 'using Pkg; Pkg.add("IJulia"); using IJulia'
 RUN python -m pip install pip --upgrade
@@ -26,6 +26,8 @@ RUN python -m pip install julia \
 
 RUN julia -e 'using Pkg; Pkg.add("LazySets")'
 # RUN julia -e 'using Pkg; Pkg.add(url="https://github.com/sisl/NeuralVerification.jl")'
+RUN julia -e 'using Pkg; Pkg.add(url="https://github.com/MehdiZadem/NeuralVerification.jl")'
+
 
 RUN mkdir /root/.mujoco
 

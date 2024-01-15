@@ -149,7 +149,7 @@ class EnvWithGoal(object):
             else:
                 obs, _, done, info = self.base_env.step(a)
 
-            reward = self.reward_fn(obs, ori, self.goal)
+            reward = self.reward_fn(obs, self.goal)
 
         if self.early_stop and self.success_fn(reward):
             self.early_stop_flag = True
