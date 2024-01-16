@@ -465,7 +465,7 @@ def run_hrac(args):
     if args.env_name == "AntGather":
         env = GatherEnv(create_gather_env(args.env_name, args.seed), args.env_name)
         env.seed(args.seed)   
-    elif args.env_name in ["AntMaze", "AntMazeSparse", "AntPush", "AntFall", "AntMazeCam"]:
+    elif args.env_name in ["AntMaze", "AntMazeSparse", "AntPush", "AntFall", "AntMazeCam", "PointMaze", "PointMazeSparse"]:
         env = EnvWithGoal(create_maze_env(args.env_name, args.seed), args.env_name)
         env.seed(args.seed)
     else:
@@ -532,7 +532,7 @@ def run_hrac(args):
     torch.backends.cudnn.benchmark = False
 
     state_dim = state.shape[0]
-    if args.env_name in ["AntMaze", "AntPush", "AntFall", "AntMazeCam"]:
+    if args.env_name in ["AntMaze", "AntPush", "AntFall", "AntMazeCam", "PointMaze"]:
         goal_dim = goal.shape[0]
     else:
         goal_dim = 0
