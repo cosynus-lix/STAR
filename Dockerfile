@@ -12,10 +12,6 @@ RUN git clone https://github.com/sisl/NNet.git \
 RUN mkdir /Downloads
 RUN cd /Downloads
 RUN apt-get install wget
-RUN wget https://julialang-s3.julialang.org/bin/linux/x64/1.8/julia-1.8.5-linux-x86_64.tar.gz
-RUN tar -xvzf julia-1.8.5-linux-x86_64.tar.gz
-RUN cp -r julia-1.8.5 /opt/
-RUN ln -s /opt/julia-1.8.5/bin/julia /usr/local/bin/julia
 
 RUN mkdir /root/.mujoco
 
@@ -31,4 +27,4 @@ RUN echo export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/root/.mujoco/mujoco210/bin >> 
 
 RUN git clone https://github.com/eth-sri/ERAN.git
 RUN cd ERAN
-RUN bash ./install.sh
+RUN ./install.sh
