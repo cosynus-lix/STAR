@@ -26,5 +26,4 @@ RUN cp -avr ./mujoco210 /root/.mujoco/
 RUN echo export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/root/.mujoco/mujoco210/bin >> ~/.bashrc
 
 RUN git clone https://github.com/eth-sri/ERAN.git
-RUN cd ERAN
-RUN ./install.sh
+RUN ERAN/install.sh
