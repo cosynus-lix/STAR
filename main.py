@@ -1,6 +1,6 @@
 import argparse
 
-from hrac.train import run_hrac, run_gara
+from hrac.train import run_hrac, run_star
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -37,9 +37,9 @@ if __name__ == "__main__":
     parser.add_argument("--fwd_hidden_dim", default=32, type=int)
     parser.add_argument("--fwd_embedding_dim", default=32, type=int)
     
-    parser.add_argument("--boss_propose_freq", default=30, type=int)
+    parser.add_argument("--boss_propose_freq", default=30, type=int) # k 
     parser.add_argument("--train_boss_freq", default=1000, type=int)
-    parser.add_argument("--manager_propose_freq", default=10, type=int)
+    parser.add_argument("--manager_propose_freq", default=10, type=int) # l
     parser.add_argument("--train_manager_freq", default=10, type=int)
     parser.add_argument("--man_discount", default=0.99, type=float)
     parser.add_argument("--ctrl_discount", default=0.95, type=float)
@@ -48,10 +48,10 @@ if __name__ == "__main__":
     parser.add_argument("--boss_batch_size", default=64, type=int)
     parser.add_argument("--boss_buffer_size", default=100000, type=int)
     parser.add_argument("--boss_buffer_min_size", default=5000, type=int)
-    parser.add_argument("--boss_policy", default="Q-learning", type=str)
-    parser.add_argument("--boss_discount_factor", default=0.99, type=float)
-    parser.add_argument("--boss_alpha", default=0.01, type=float)
-    parser.add_argument("--reach_algo", default="Ai2", type=str)
+    parser.add_argument("--boss_policy", default="Q-learning", type=str) # Do not change
+    parser.add_argument("--boss_discount_factor", default=0.99, type=float) 
+    parser.add_argument("--boss_alpha", default=0.01, type=float) 
+    parser.add_argument("--reach_algo", default="Ai2", type=str) # Do not change
     parser.add_argument("--boss_eps", default=0.99, type=int)
     parser.add_argument("--boss_eps_min", default=0.01, type=int)
     parser.add_argument("--boss_eps_decay", default=0.99995, type=float)
@@ -100,4 +100,4 @@ if __name__ == "__main__":
 
     for exp in range(5):
         args.exp = str(exp)
-        run_gara(args)
+        run_star(args)

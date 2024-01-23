@@ -471,7 +471,7 @@ def run_hrac(args):
     else:
         raise NotImplementedError
 
-    if args.env_name in ["AntMaze"]:
+    if args.env_name in ["AntMaze", "PointMaze"]:
         state_dims = None
     elif args.env_name in ["AntMazeCam"]:
         state_dims = [0,1,3,4,5]
@@ -588,8 +588,8 @@ def run_hrac(args):
     n_states = 0
     state_list = []
     state_dict = {}
-    # adj_mat = np.diag(np.ones(1500, dtype=np.uint8))
-    adj_mat = np.diag(np.ones(5000, dtype=np.uint8))
+    adj_mat = np.diag(np.ones(1500, dtype=np.uint8))
+    # adj_mat = np.diag(np.ones(5000, dtype=np.uint8))
     traj_buffer = utils.TrajectoryBuffer(capacity=args.traj_buffer_size)
     a_net = ANet(controller_goal_dim, args.r_hidden_dim, args.r_embedding_dim)
     if args.load_adj_net:
@@ -838,7 +838,7 @@ def run_hrac(args):
     # u_bound.to_csv(os.path.join("./results", "states_u"+".csv"), float_format="%.4f", index=False)
     print("Training finished.")
 
-def run_gara(args):
+def run_star(args):
     start_algo = time.time()
     if not os.path.exists("./results"):
         os.makedirs("./results")
@@ -1403,13 +1403,13 @@ def run_hiro(args):
     if args.env_name == "AntGather":
         env = GatherEnv(create_gather_env(args.env_name, args.seed), args.env_name)
         env.seed(args.seed)   
-    elif args.env_name in ["AntMaze", "AntMazeSparse", "AntPush", "AntFall", "AntMazeCam"]:
+    elif args.env_name in ["AntMaze", "AntMazeSparse", "AntPush", "AntFall", "AntMazeCam", "PointMaze"]:
         env = EnvWithGoal(create_maze_env(args.env_name, args.seed), args.env_name)
         env.seed(args.seed)
     else:
         raise NotImplementedError
 
-    if args.env_name in ["AntMaze"]:
+    if args.env_name in ["AntMaze", "PointMaze"]:
         state_dims = None
     elif args.env_name in ["AntMazeCam"]:
         state_dims = [0,1,3,4,5]
@@ -1469,7 +1469,7 @@ def run_hiro(args):
     torch.backends.cudnn.benchmark = False
 
     state_dim = state.shape[0]
-    if args.env_name in ["AntMaze", "AntPush", "AntFall", "AntMazeCam"]:
+    if args.env_name in ["AntMaze", "AntPush", "AntFall", "AntMazeCam", "PointMaze"]:
         goal_dim = goal.shape[0]
     else:
         goal_dim = 0
