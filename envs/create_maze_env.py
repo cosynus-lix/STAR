@@ -15,7 +15,7 @@
 
 from .ant_maze_env import AntMazeEnv
 from .point_maze_env import PointMazeEnv
-
+import numpy as np
 
 def create_maze_env(env_name=None, seed=0):
   maze_id = None
@@ -44,6 +44,11 @@ def create_maze_env(env_name=None, seed=0):
   elif env_name.endswith('MazeCam'):
     maze_id = 'MazeCam'
     return AntMazeEnv(maze_id=maze_id, maze_size_scaling=8, seed=seed)
+  
+  elif env_name.endswith('MazeStochastic'):
+    maze_id = 'MazeStochastic'
+    new_pos = [np.random.normal(), 2]
+    return AntMazeEnv(maze_id=maze_id, maze_size_scaling=8, seed=seed, new_pos=new_pos)
 
   else:
     raise ValueError('Unknown maze environment %s' % env_name)

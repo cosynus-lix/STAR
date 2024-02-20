@@ -41,6 +41,7 @@ class MazeEnv(gym.Env):
       maze_height=0.5,
       maze_size_scaling=8,
       seed=0,
+      new_pos=None,
       *args,
       **kwargs):
     self._maze_id = maze_id
@@ -123,14 +124,24 @@ class MazeEnv(gym.Env):
           # ensure that it can fall easily through a gap in the platform blocks.
           falling = maze_env_utils.can_move_z(structure[i][j])
           shrink = 0.99 if falling else 1.0
-          moveable_body = ET.SubElement(
-              worldbody, "body",
-              name="moveable_%d_%d" % (i, j),
-              pos="%f %f %f" % (j * size_scaling - torso_x,
-                                i * size_scaling - torso_y,
-                                height_offset +
-                                height / 2 * size_scaling),
-          )
+          if new_pos:
+            moveable_body = ET.SubElement(
+                worldbody, "body",
+                name="moveable_%d_%d" % (i, j),
+                pos="%f %f %f" % (j * size_scaling * new_pos[1] - torso_x + new_pos[0],
+                                  i * size_scaling - torso_y,
+                                  height_offset +
+                                  height / 2 * size_scaling),
+            )
+          else:
+            moveable_body = ET.SubElement(
+                worldbody, "body",
+                name="moveable_%d_%d" % (i, j),
+                pos="%f %f %f" % (j * size_scaling - torso_x,
+                                  i * size_scaling - torso_y,
+                                  height_offset +
+                                  height / 2 * size_scaling),
+            )
           ET.SubElement(
               moveable_body, "geom",
               name="block_%d_%d" % (i, j),

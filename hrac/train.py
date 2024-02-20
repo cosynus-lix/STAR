@@ -465,13 +465,13 @@ def run_hrac(args):
     if args.env_name == "AntGather":
         env = GatherEnv(create_gather_env(args.env_name, args.seed), args.env_name)
         env.seed(args.seed)   
-    elif args.env_name in ["AntMaze", "AntMazeSparse", "AntPush", "AntFall", "AntMazeCam", "PointMaze", "PointMazeSparse"]:
+    elif args.env_name in ["AntMaze", "AntMazeSparse", "AntPush", "AntFall", "AntMazeCam", "PointMaze", "AntMazeStochastic"]:
         env = EnvWithGoal(create_maze_env(args.env_name, args.seed), args.env_name)
         env.seed(args.seed)
     else:
         raise NotImplementedError
 
-    if args.env_name in ["AntMaze", "PointMaze"]:
+    if args.env_name in ["AntMaze", "PointMaze", "AntMazeStochastic"]:
         state_dims = None
     elif args.env_name in ["AntMazeCam"]:
         state_dims = [0,1,3,4,5]
@@ -856,13 +856,13 @@ def run_star(args):
     if args.env_name == "AntGather":
         env = GatherEnv(create_gather_env(args.env_name, args.seed), args.env_name)
         env.seed(args.seed)   
-    elif args.env_name in ["AntMaze", "AntMazeSparse", "AntPush", "AntFall", "AntMazeCam"]:
+    elif args.env_name in ["AntMaze", "AntMazeSparse", "AntPush", "AntFall", "AntMazeCam", "PointMaze", "AntMazeStochastic"]:
         env = EnvWithGoal(create_maze_env(args.env_name, args.seed), args.env_name)
         env.seed(args.seed)
     else:
         raise NotImplementedError
 
-    if args.env_name in ["AntMaze"]:
+    if args.env_name in ["AntMaze", "AntMazeStochastic"]:
         state_dims = None
     elif args.env_name in ["AntMazeCam"]:
         state_dims = [0,1,3,4,5]
@@ -932,10 +932,10 @@ def run_star(args):
     torch.backends.cudnn.benchmark = False
 
     state_dim = state.shape[0]
-    if args.env_name in ["AntMaze", "AntPush", "AntFall", "AntMazeCam"] and not state_dims:
+    if args.env_name in ["AntMaze", "AntPush", "AntFall", "AntMazeCam", "AntMazeStochastic"] and not state_dims:
         goal_dim = goal.shape[0]
         goal_cond = True
-    elif args.env_name in ["AntMaze", "AntPush", "AntFall", "AntMazeCam"] and state_dims:
+    elif args.env_name in ["AntMaze", "AntPush", "AntFall", "AntMazeCam", "AntMazeStochastic"] and state_dims:
         goal_dim = len(state_dims)
         goal_cond = True
     elif state_dims:
@@ -1403,13 +1403,13 @@ def run_hiro(args):
     if args.env_name == "AntGather":
         env = GatherEnv(create_gather_env(args.env_name, args.seed), args.env_name)
         env.seed(args.seed)   
-    elif args.env_name in ["AntMaze", "AntMazeSparse", "AntPush", "AntFall", "AntMazeCam", "PointMaze"]:
+    elif args.env_name in ["AntMaze", "AntMazeSparse", "AntPush", "AntFall", "AntMazeCam", "PointMaze", "AntMazeStochastic"]:
         env = EnvWithGoal(create_maze_env(args.env_name, args.seed), args.env_name)
         env.seed(args.seed)
     else:
         raise NotImplementedError
 
-    if args.env_name in ["AntMaze", "PointMaze"]:
+    if args.env_name in ["AntMaze", "PointMaze", "AntMazeStochastic"]:
         state_dims = None
     elif args.env_name in ["AntMazeCam"]:
         state_dims = [0,1,3,4,5]

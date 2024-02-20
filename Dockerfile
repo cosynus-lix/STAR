@@ -13,6 +13,21 @@ RUN mkdir /Downloads
 RUN cd /Downloads
 RUN apt-get install wget
 
+RUN wget https://julialang-s3.julialang.org/bin/linux/x64/1.8/julia-1.8.5-linux-x86_64.tar.gz
+RUN tar -xvzf julia-1.8.5-linux-x86_64.tar.gz
+RUN cp -r julia-1.8.5 /opt/
+RUN ln -s /opt/julia-1.8.5/bin/julia /usr/local/bin/julia
+
+# RUN julia -e 'using Pkg; Pkg.add(url="https://github.com/MehdiZadem/NeuralVerification.jl")'
+
+RUN julia -e 'using Pkg; Pkg.add("IJulia"); using IJulia'
+RUN python -m pip install pip --upgrade
+RUN python -m pip install julia \
+		&& python -c 'import julia; julia.install()'
+
+RUN julia -e 'using Pkg; Pkg.add("LazySets")'
+# RUN julia -e 'using Pkg; Pkg.add(url="https://github.com/sisl/NeuralVerification.jl")'
+RUN julia -e 'using Pkg; Pkg.add(url="https://github.com/MehdiZadem/NeuralVerification.jl")'
 RUN mkdir /root/.mujoco
 
 RUN apt-get update
@@ -25,5 +40,5 @@ RUN apt install patchelf
 RUN cp -avr ./mujoco210 /root/.mujoco/
 RUN echo export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/root/.mujoco/mujoco210/bin >> ~/.bashrc
 
-RUN git clone https://github.com/eth-sri/ERAN.git
-RUN ERAN/install.sh
+# RUN git clone https://github.com/eth-sri/ERAN.git
+# RUN ERAN/install.sh

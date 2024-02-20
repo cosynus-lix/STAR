@@ -37,6 +37,7 @@ class DQN(nn.Module):
         x = F.relu(self.layer2(x))
         return self.layer3(x)
 
+
 class Actor(nn.Module):
     def __init__(self, state_dim, goal_dim, action_dim, max_action):
         super().__init__()
