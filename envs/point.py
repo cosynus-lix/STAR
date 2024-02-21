@@ -96,8 +96,7 @@ class PointEnv(mujoco_env.MujocoEnv, utils.EzPickle):
     return xy[0], xy[1]
 
   def set_xy(self, xy):
-    qpos = np.copy(self.physics.data.qpos)
-    qpos[0] = xy[0]
-    qpos[1] = xy[1]
-
-    qvel = self.physics.data.qvel
+    # qpos = np.copy(self.physics.data.qpos)
+    self.physics.data.qpos[0] = xy[0]
+    self.physics.data.qpos[1] = xy[1]
+    # qvel = self.physics.data.qvel
