@@ -22,7 +22,8 @@ def create_maze_env(env_name=None, seed=0):
   if env_name.endswith('Maze'):
     maze_id = 'Maze'
     if env_name.startswith('Point'):
-      return PointMazeEnv(maze_id=maze_id, maze_size_scaling=8, seed=seed)
+      return PointMazeEnv(maze_id=maze_id, maze_size_scaling=8, seed=seed, manual_collision=True)
+    
     elif env_name.startswith('Ant'):
       return AntMazeEnv(maze_id=maze_id, maze_size_scaling=8, seed=seed)
   

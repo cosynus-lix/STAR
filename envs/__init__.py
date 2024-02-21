@@ -137,6 +137,7 @@ class EnvWithGoal(object):
         if self.env_name in ['AntMaze', 'AntPush', 'AntFall', 'AntMazeStochastic', 'PointMaze']:
             obs, _, done, info = self.base_env.step(a)
             reward = self.reward_fn(obs, self.goal)
+
         elif self.env_name in ['AntMazeCam']:
             ori = self.base_env.get_ori()
             obs = self.base_env._get_obs()

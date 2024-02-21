@@ -91,6 +91,10 @@ class PointEnv(mujoco_env.MujocoEnv, utils.EzPickle):
   def get_ori(self):
     return self.physics.data.qpos[self.__class__.ORI_IND]
 
+  def get_xy(self):
+    xy = np.copy(self.physics.data.qpos)
+    return xy[0], xy[1]
+
   def set_xy(self, xy):
     qpos = np.copy(self.physics.data.qpos)
     qpos[0] = xy[0]

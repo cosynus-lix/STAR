@@ -41,11 +41,12 @@ class MazeEnv(gym.Env):
       maze_height=0.5,
       maze_size_scaling=8,
       seed=0,
+      manual_collision=False,
       new_pos=None,
       *args,
       **kwargs):
     self._maze_id = maze_id
-
+    self._manual_collision = manual_collision
     model_cls = self.__class__.MODEL_CLASS
     if model_cls is None:
       raise "MODEL_CLASS unspecified!"
@@ -263,10 +264,32 @@ class MazeEnv(gym.Env):
 
   def step(self, action):
     self.t += 1
-    inner_next_obs, inner_reward, done, info = self.wrapped_env.step(action)
+    if self._manual_collision:
+      old_pos = self.wrapped_env.get_xy()
+      inner_next_obs, inner_reward, done, info = self.wrapped_env.step(action)
+      new_pos = self.wrapped_env.get_xy()
+      if self._is_in_collision(new_pos):
+        self.wrapped_env.set_xy(old_pos)
+    else:
+      inner_next_obs, inner_reward, done, info = self.wrapped_env.step(action)
     next_obs = self._get_obs()
     done = False
     return next_obs, inner_reward, done, info
+  
+  def _is_in_collision(self, pos):
+    x, y = pos
+    structure = self.MAZE_STRUCTURE
+    size_scaling = self.MAZE_SIZE_SCALING
+    for i in range(len(structure)):
+      for j in range(len(structure[0])):
+        if structure[i][j] == 1:
+          minx = j * size_scaling - size_scaling * 0.5 - self._init_torso_x
+          maxx = j * size_scaling + size_scaling * 0.5 - self._init_torso_x
+          miny = i * size_scaling - size_scaling * 0.5 - self._init_torso_y
+          maxy = i * size_scaling + size_scaling * 0.5 - self._init_torso_y
+          if minx <= x <= maxx and miny <= y <= maxy:
+            return True
+    return False
   
   def copy_state(self, qpos, qvel):
     self.wrapped_env.copy_state(qpos, qvel)
