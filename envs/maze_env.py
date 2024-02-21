@@ -125,6 +125,7 @@ class MazeEnv(gym.Env):
           falling = maze_env_utils.can_move_z(structure[i][j])
           shrink = 0.99 if falling else 1.0
           if new_pos:
+            self.new_pos = new_pos
             moveable_body = ET.SubElement(
                 worldbody, "body",
                 name="moveable_%d_%d" % (i, j),

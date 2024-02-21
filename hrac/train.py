@@ -948,13 +948,13 @@ def run_star(args):
     g_low = [0, 0]
     g_high = [20, 20]
     
-    if args.env_name in ["AntMaze", "AntMazeCam"] and state_dims:
+    if args.env_name in ["AntMaze", "AntMazeCam", "AntMazeStochastic"] and state_dims:
         G_init = [utils.ndInterval(goal_dim, inf=[0,0]+list(low[state_dims[2:]]), sup=[8,8]+list(high[state_dims[2:]])),
                 utils.ndInterval(goal_dim, inf=[8,0]+list(low[state_dims[2:]]), sup=[20,8]+list(high[state_dims[2:]])),
                 utils.ndInterval(goal_dim, inf=[8,8]+list(low[state_dims[2:]]), sup=[20,20]+list(high[state_dims[2:]])),
                 utils.ndInterval(goal_dim, inf=[0,8]+list(low[state_dims[2:]]), sup=[8,20]+list(high[state_dims[2:]]))
                 ]
-    elif args.env_name in ["AntMaze", "AntMazeCam"] and not state_dims:
+    elif args.env_name in ["AntMaze", "AntMazeCam", "AntMazeStochastic"] and not state_dims:
         G_init = [utils.ndInterval(goal_dim, inf=[0,0], sup=[8,8]),
                 utils.ndInterval(goal_dim, inf=[8,0], sup=[20,8]),
                 utils.ndInterval(goal_dim, inf=[8,8], sup=[20,20]),

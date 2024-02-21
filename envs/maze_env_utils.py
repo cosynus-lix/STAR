@@ -96,7 +96,7 @@ def construct_maze(maze_id='Maze'):
     structure = [
         [1, 1,  1,  1,   1],
         [1, 0, 'r', 0,   1],
-        [1, 0,  Move.Z, 0,  1],
+        [1, 0,  Move.X, 0,  1],
         [1, 0,  0,  0,   1],
         [1, 1,  1,  1,   1],
     ]

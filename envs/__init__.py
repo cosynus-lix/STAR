@@ -7,7 +7,7 @@ import envs.create_maze_env
 
 
 def get_goal_sample_fn(env_name, evaluate):
-    if env_name == 'AntMaze' or env_name == 'PointMaze':
+    if env_name == 'AntMaze' or env_name == 'PointMaze' or env_name == 'AntMazeStochastic':
         if evaluate:
             return lambda: np.array([0., 16.])
         else:
@@ -28,7 +28,7 @@ def get_goal_sample_fn(env_name, evaluate):
 
 
 def get_reward_fn(env_name):
-    if env_name in ['AntMaze', 'AntPush', 'PointMaze']:
+    if env_name in ['AntMaze', 'AntPush', 'PointMaze', 'AntMazeStochastic']:
         return lambda obs, goal: -np.sum(np.square(obs[:2] - goal)) ** 0.5
     elif env_name == 'AntMazeSparse' or env_name == 'PointMazeSparse':
         return lambda obs, goal: float(np.sum(np.square(obs[:2] - goal)) ** 0.5 < 1)
@@ -41,7 +41,7 @@ def get_reward_fn(env_name):
 
 
 def get_success_fn(env_name):
-    if env_name in ['AntMaze', 'AntPush', 'AntFall', 'PointMaze']:
+    if env_name in ['AntMaze', 'AntPush', 'AntFall', 'PointMaze', 'AntMazeStochastic']:
         return lambda reward: reward > -5.0
     elif env_name == 'AntMazeSparse' or env_name == 'PointMazeSparse':
         return lambda reward: reward > 1e-6
@@ -98,7 +98,7 @@ class EnvWithGoal(object):
         self.distance_threshold = 5 if env_name in ['AntMaze', 'AntPush', 'AntFall', 'AntMazeCam', 'MazeStochastic'] else 1
         if env_name in ['AntMazeCam']:
             self.cam = False 
-            self.alt_base_env = envs.create_maze_env.create_maze_env('AntMaze', 2)
+            self.alt_base_env = envs.create_maze_env.create_maze_env('AntMaze', self.seed())
         self.count = 0
         self.early_stop = False if env_name in ['AntMaze', 'AntPush', 'AntFall', 'AntMazeCam', 'MazeStochastic', 'PointMaze'] else True
         self.early_stop_flag = False
@@ -114,13 +114,15 @@ class EnvWithGoal(object):
         self.past = []
         self.early_stop_flag = False
         self.goal_sample_fn = get_goal_sample_fn(self.env_name, self.evaluate)
-        obs = self.base_env.reset()
-        # self.init_qpos = np.copy(obs[:15])
-        # self.init_qvel = np.copy(obs[15:29])
+        if self.env_name in ['AntMazeStochastic']:
+            self.alt_base_env = envs.create_maze_env.create_maze_env('AntMazeStochastic', 2)
+            self.base_env = self.alt_base_env
+        
+        obs = self.base_env.reset()    
         self.past.append(obs)
         self.count = 0
         self.goal = self.goal_sample_fn()
-        self.desired_goal = self.goal if self.env_name in ['AntMaze', 'AntPush', 'AntFall', 'AntMazeCam', 'MazeStochastic', 'PointMaze'] else None
+        self.desired_goal = self.goal if self.env_name in ['AntMaze', 'AntPush', 'AntFall', 'AntMazeCam', 'AntMazeStochastic', 'PointMaze'] else None
         if self.env_name in ['AntMazeCam']:
             self.cam = False 
             self.alt_base_env.reset()
@@ -132,7 +134,7 @@ class EnvWithGoal(object):
 
     def step(self, a):
         self.history.append(a)
-        if self.env_name in ['AntMaze', 'AntPush', 'AntFall', 'MazeStochastic', 'PointMaze']:
+        if self.env_name in ['AntMaze', 'AntPush', 'AntFall', 'AntMazeStochastic', 'PointMaze']:
             obs, _, done, info = self.base_env.step(a)
             reward = self.reward_fn(obs, self.goal)
         elif self.env_name in ['AntMazeCam']:
@@ -151,7 +153,7 @@ class EnvWithGoal(object):
                 obs, _, done, info = self.base_env.step(a)
 
             reward = self.reward_fn(obs, self.goal)
-        elif self.env_name in ['MazeStochastic']:
+        elif self.env_name in ['AnMazeStochastic']:
             obs, _, done, info = self.base_env.step(a)
             reward = self.reward_fn(obs, self.goal)
             # move the block to a new location with a normal probability
