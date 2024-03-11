@@ -256,7 +256,6 @@ class ReachabilityAnalysis:
         output_high = output[0].sup
         R_low, R_high = jl.reachability(self.alg, input_low, input_high, output_low, output_high,
                                         self.network)
-        # print(R_low, R_high)
         R = ndInterval(self.n_output, inf=R_low, sup=R_high)
         self.reach = R
 
@@ -264,7 +263,6 @@ class ReachabilityAnalysis:
             error = self.compute_error(input, R)
             self.errors.append(error)
 
-        # print(self.coverage(output))
         c1, c2 = self.coverage(output)
 
         print("input: ", input_low, input_high)
@@ -290,12 +288,6 @@ class ReachabilityAnalysis:
             partitions = dict()
             depth += 1
             split_dim = [jl.compute_grad(input_low, input_high, self.network)]
-            '''
-            if depth % 2 == 0:
-                split_dim = [0]
-            else:
-                split_dim = [depth % self.n_input]
-            '''
             splits = input.split(split_dim)
             partition1, partition2 = splits[0], splits[1]
 
@@ -307,20 +299,11 @@ class ReachabilityAnalysis:
             partitions['no_reach'] = partitions1['no_reach'] + partitions2['no_reach']
             partitions['no_reach_size'] = partitions1['no_reach_size'] + partitions2['no_reach_size']
         else:
-            # if c1 >= 0.5:
-            #     partitions = dict()
-            #     partitions['reach'] = [copy.deepcopy(input)]
-            #     partitions['reach_size'] = 1
-            #     partitions['no_reach'] = []
-            #     partitions['no_reach_size'] = 0
-            #     # print("safe")
-            # else:
             partitions = dict()
             partitions['reach'] = []
             partitions['reach_size'] = 0
             partitions['no_reach'] = [copy.deepcopy(input)]
             partitions['no_reach_size'] = 1
-            # print("unsafe")
 
         return partitions
 
@@ -336,7 +319,7 @@ def write_stats(stats):
         json.dump(stats, f)
 
 
-def reachability_analysis(network, input, output, alg):
+def reachability_analysis(network, input, output, alg, t1=0.7, t2=0.1):
     R = ReachabilityAnalysis(alg, input, output, network)
-    partitions = R.Reachability(0.1, 0.7, R.input, R.output, compute_error=True)
+    partitions = R.Reachability(t1, t2, R.input, R.output, compute_error=True)
     return partitions

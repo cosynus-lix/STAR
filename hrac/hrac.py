@@ -243,7 +243,7 @@ class Boss(object):
         candidates.remove(start_partition)
         return candidates                
 
-    def split(self, forward_model, start_partition, target_partition, replay_buffer=[]):
+    def split(self, forward_model, start_partition, target_partition, replay_buffer=[], tau1=0.8, tau2=0.2):
         """Split the partition into two partitions according to reachability analysis"""
 
         model = forward_model
@@ -275,7 +275,7 @@ class Boss(object):
             input = ndInterval(len(input_lower), input_lower, input_upper)
             
             partitions = reach_analysis.reachability_analysis("./nnet/forward_" + str(start_partition) + "_" + str(
-                target_partition) + ".nnet", input, [self.G[target_partition]], "Ai2")
+                target_partition) + ".nnet", input, [self.G[target_partition]], "Ai2", tau1, tau2)
 
             reach, no_reach = [], []
             for p in partitions['reach']:
@@ -395,21 +395,12 @@ class Boss(object):
                             self.Q[len(self.G) - 1] = self.Q[start_partition]
                             self.Q[len(self.G) - 1, start_partition] = self.Q[start_partition, start_partition]
                             self.Q[start_partition, len(self.G) - 1] = self.Q[start_partition, start_partition]
-                    # elif self.policy == 'Planning':
-                    #     self.graph.add_node(len(self.G) - 1)
-                    #     reward = 1 # nx.get_edge_attributes(self.graph, 'reward')[(start_partition, target_partition)]
-                    #     self.graph.add_edge(len(self.G) - 1, target_partition, reward=reward)
-                            
-                    # for j in next:
-                    #     self.automaton.add_edge(len(self.G) - 1, j, reward=-10)
             if no_reach:
                 for i in range(len(no_reach)):
                     self.splits.append(len(self.G) - 1)
                     self.G.append(copy.deepcopy(no_reach[i]))
                     self.automaton.add_node(len(self.G) - 1)
-                    # self.automaton.add_edge(len(self.G) - 1, start_partition)
-                    # for j in range(n, n+len(reach)-1):
-                        # self.automaton.add_edge(len(self.G) - 1, j)
+ 
                     self.unsafe.append([len(self.G) - 1, target_partition])
                     for j in next:
                         self.automaton.add_edge(len(self.G) - 1, j)
@@ -417,23 +408,12 @@ class Boss(object):
                     if self.policy == 'Q-learning':
                         if self.goal_cond:
                             self.Q[len(self.G) - 1,:] = self.Q[start_partition,:]
-                            # self.Q[len(self.G) - 1, :, start_partition] = self.Q[start_partition, :, target_partition] / discount
-                            # self.Q[len(self.G) - 1,:, target_partition] = tmp
                         else:
                             self.Q[len(self.G) - 1] = self.Q[start_partition]
-                            # self.Q[len(self.G) - 1, start_partition] = self.Q[start_partition, target_partition] / discount
-                            # self.Q[len(self.G) - 1, target_partition] = tmp
                     elif self.policy == 'Planning':
                         self.graph.add_node(len(self.G) - 1)
-
-
-            
-            # elif self.policy == 'Planning':
-                # self.build_graph(replay_buffer)
-
                 
-    def train(self, forward_model, goal, transition_list, min_steps, batch_size=100, replay_buffer=[]):     
-        # goal_partition = self.identify_partition(goal)
+    def train(self, forward_model, goal, transition_list, min_steps, batch_size=100, replay_buffer=[], tau1=0.8, tau2=0.2):     
         for goal_pair in transition_list:
              if goal_pair not in self.automaton.edges() \
                 and goal_pair not in self.unsafe \
@@ -443,7 +423,7 @@ class Boss(object):
                 and not goal_pair[0] in self.splits \
                 and not nx.has_path(self.automaton, source=goal_pair[0], target=goal_pair[1]) :
                 
-                self.split(forward_model, start_partition=goal_pair[0], target_partition=goal_pair[1], replay_buffer=replay_buffer)
+                self.split(forward_model, start_partition=goal_pair[0], target_partition=goal_pair[1], replay_buffer=replay_buffer, tau1=tau1, tau2=tau2)
 
     
     def save(self, dir, env_name, time):
@@ -464,11 +444,7 @@ class Boss(object):
                 # process each line
                 G.append(ndInterval(self.goal_dim, inf=[float(line[i]) for i in range(self.goal_dim // 2)], sup=[float(line[i]) for i in range(self.goal_dim // 2, self.goal_dim)]))
         f.close()
-        self.G = G
-        
-        with open("{}/{}_{}_BossAutomaton.gpickle".format(dir, env_name, algo), 'rb') as f:
-            self.automaton = pickle.load(f)
-      
+        self.G = G      
 
 class Manager(object):
     def __init__(self, state_dim, goal_dim, action_dim, actor_lr,

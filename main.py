@@ -55,7 +55,8 @@ if __name__ == "__main__":
     parser.add_argument("--boss_eps", default=0.99, type=int)
     parser.add_argument("--boss_eps_min", default=0.01, type=int)
     parser.add_argument("--boss_eps_decay", default=0.99995, type=float)
-    
+    parser.add_argument("--boss_eps_linear_decay", default=1e-6, type=float)
+      
 
     # Manager Parameters
     parser.add_argument("--man_soft_sync_rate", default=0.005, type=float)
@@ -78,6 +79,10 @@ if __name__ == "__main__":
     parser.add_argument("--noise_type", default="normal", type=str)
     parser.add_argument("--ctrl_noise_sigma", default=1., type=float)
     parser.add_argument("--man_noise_sigma", default=1., type=float)
+
+    # Reachability Parameters
+    parser.add_argument("--tau1", default="0.7", type=float)
+    parser.add_argument("--tau2", default="0.1", type=float)
 
     # Experiment Number
     parser.add_argument("--exp", default="0", type=str)
