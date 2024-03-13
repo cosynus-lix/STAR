@@ -225,10 +225,10 @@ def read_partitions():
     visits = {'AntMaze':[], 'AntFall':[]}
     regions = {'AntMaze':[], 'AntFall':[]}
     experiments = ['AntMaze', 'AntFall']
-    dir = 'results/'
+    dir = '/exp_data/partitions/'
     for i in range(3):
         for e in experiments:
-            file = dir + e + "_partitions_" + str(i)
+            file = dir + e + "_partitions_" + str(i) + ".csv"
             v = []
             r = []
             with open(file) as csv_file:
