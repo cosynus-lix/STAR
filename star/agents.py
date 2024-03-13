@@ -10,9 +10,9 @@ import json
 import copy
 from collections import defaultdict
 
-from hrac.models import ControllerActor, ControllerCritic, \
+from star.models import ControllerActor, ControllerCritic, \
     ManagerActor, ManagerCritic, ForwardModel
-from hrac.utils import ndInterval
+from star.utils import ndInterval
 
 from reachability import reach_analysis
 from convert import convert

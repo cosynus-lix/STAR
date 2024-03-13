@@ -3,7 +3,7 @@ import torch
 import numpy as np
 import os
 
-import hrac.hrac as hrac
+import star.agents as agents
 from envs import EnvWithGoal, GatherEnv
 from envs.create_maze_env import create_maze_env
 from envs.create_gather_env import create_gather_env
@@ -149,7 +149,7 @@ def eval_hrac(args):
     else:
         goal_dim = 0
 
-    controller_policy = hrac.Controller(
+    controller_policy = agents.Controller(
         state_dim=state_dim,
         goal_dim=controller_goal_dim,
         action_dim=action_dim,
@@ -162,7 +162,7 @@ def eval_hrac(args):
         noise_clip=0
     )
 
-    manager_policy = hrac.Manager(
+    manager_policy = agents.Manager(
         state_dim=state_dim,
         goal_dim=goal_dim,
         action_dim=controller_goal_dim,

@@ -10,9 +10,9 @@ import pandas as pd
 from math import ceil
 from collections import defaultdict
 
-import hrac.utils as utils
-import hrac.hrac as hrac
-from hrac.models import ANet, ForwardModel
+import star.utils as utils
+import star.agents as agents
+from star.models import ANet, ForwardModel
 from envs import EnvWithGoal, GatherEnv
 from envs.create_maze_env import create_maze_env
 from envs.create_gather_env import create_gather_env
@@ -222,14 +222,9 @@ def evaluate_policy_gara(env, env_name, goal_dim, grid, boss_policy, controller_
                         target_partition_interval = boss_policy.G[target_partition_idx]
                     target_partition = np.array(target_partition_interval.inf + target_partition_interval.sup)
 
-                    if start_partition_idx == 3:
-                        print("ant in part 3" + "targeting part" + str(target_partition_idx))
-                    if start_partition_idx == 2:
-                        print("ant in part 2" + "targeting part" + str(target_partition_idx))
-                    if start_partition_idx == 1:
-                        print("ant in part 1" + "targeting part" + str(target_partition_idx))
-
-                    subgoal = target_partition
+                    partition_center = np.array([(target_partition_interval.inf[0] + target_partition_interval.sup[0]) / 2,
+                        (target_partition_interval.inf[1] + target_partition_interval.sup[1]) / 2])
+                    subgoal = partition_center
 
                 step_count += 1
                 global_steps += 1
@@ -534,7 +529,7 @@ def run_hrac(args):
     states_l = state
     states_u = state
     
-    controller_policy = hrac.Controller(
+    controller_policy = agents.Controller(
         state_dim=state_dim,
         goal_dim=controller_goal_dim,
         action_dim=action_dim,
@@ -547,7 +542,7 @@ def run_hrac(args):
         noise_clip=noise_clip
     )
 
-    manager_policy = hrac.Manager(
+    manager_policy = agents.Manager(
         state_dim=state_dim,
         goal_dim=goal_dim,
         action_dim=controller_goal_dim,
@@ -909,7 +904,7 @@ def run_star(args):
     torch.cuda.set_device(args.gid)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    file_name = "{}_{}_{}_{}".format(args.env_name, "gara", args.exp, args.seed)
+    file_name = "{}_{}_{}_{}".format(args.env_name, args.algo, args.exp, args.seed)
     output_data = {"frames": [], "reward": [], "dist": []}    
 
     torch.manual_seed(args.seed)
@@ -964,7 +959,7 @@ def run_star(args):
     resolution = 50
     grid = np.zeros((resolution, resolution))
 
-    boss_policy = hrac.Boss(
+    boss_policy = agents.Boss(
         G_init=G_init,
         state_dim=state_dim,
         goal_dim=goal_dim,
@@ -973,7 +968,7 @@ def run_star(args):
         goal_cond=goal_cond,
         mem_capacity=args.boss_batch_size)
     
-    controller_policy = hrac.Controller(
+    controller_policy = agents.Controller(
         state_dim=state_dim,
         goal_dim=controller_goal_dim,
         action_dim=action_dim,
@@ -986,7 +981,7 @@ def run_star(args):
         noise_clip=noise_clip
     )
 
-    manager_policy = hrac.Manager(
+    manager_policy = agents.Manager(
         state_dim=state_dim,
         goal_dim=2*goal_dim,
         action_dim=controller_goal_dim,
@@ -1437,7 +1432,7 @@ def run_hiro(args):
     torch.cuda.set_device(args.gid)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    file_name = "{}_{}_{}_{}".format(args.env_name, "hiro", args.exp, args.seed)
+    file_name = "{}_{}_{}_{}".format(args.env_name, args.algo, args.exp, args.seed)
     output_data = {"frames": [], "reward": [], "dist": []}    
 
     torch.manual_seed(args.seed)
@@ -1454,7 +1449,7 @@ def run_hiro(args):
     states_l = state
     states_u = state
     
-    controller_policy = hrac.Controller(
+    controller_policy = agents.Controller(
         state_dim=state_dim,
         goal_dim=controller_goal_dim,
         action_dim=action_dim,
@@ -1467,7 +1462,7 @@ def run_hiro(args):
         noise_clip=noise_clip
     )
 
-    manager_policy = hrac.Manager(
+    manager_policy = agents.Manager(
         state_dim=state_dim,
         goal_dim=goal_dim,
         action_dim=controller_goal_dim,
@@ -1816,7 +1811,7 @@ def run_gara(args):
     torch.cuda.set_device(args.gid)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    file_name = "{}_{}_{}_{}".format(args.env_name, "gara", args.exp, args.seed)
+    file_name = "{}_{}_{}_{}".format(args.env_name, args.algo, args.exp, args.seed)
     output_data = {"frames": [], "reward": [], "dist": []}    
 
     torch.manual_seed(args.seed)
@@ -1871,7 +1866,7 @@ def run_gara(args):
     resolution = 50
     grid = np.zeros((resolution, resolution))
 
-    boss_policy = hrac.Boss(
+    boss_policy = agents.Boss(
         G_init=G_init,
         state_dim=state_dim,
         goal_dim=goal_dim,
@@ -1880,7 +1875,7 @@ def run_gara(args):
         goal_cond=goal_cond,
         mem_capacity=args.boss_batch_size)
     
-    controller_policy = hrac.Controller(
+    controller_policy = agents.Controller(
         state_dim=state_dim,
         goal_dim=controller_goal_dim,
         action_dim=action_dim,
