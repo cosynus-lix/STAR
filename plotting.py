@@ -16,9 +16,9 @@ def read_results(exp, alg):
     success = []
     dist = []
     n_runs = 0
-    dir = 'results/'
+    dir = 'exp_data/' + exp + '/' + alg + '/'
     for file in os.listdir(dir):
-        if file.endswith(exp + "_" + alg) and file.endswith(".csv"):
+        if file.startswith(exp + "_" + alg) and file.endswith(".csv"):
             frames = []
             s = []
             d = []
