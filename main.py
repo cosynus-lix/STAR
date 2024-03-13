@@ -1,10 +1,10 @@
 import argparse
 
-from hrac.train import run_hrac, run_star
+from hrac.train import run_hrac, run_star, run_hiro, run_gara
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--algo", default="hrac", type=str)
+    parser.add_argument("--algo", default="star", type=str)
     parser.add_argument("--seed", default=2, type=int)
     parser.add_argument("--eval_freq", default=5e3, type=float)
     parser.add_argument("--max_timesteps", default=5e6, type=float)
@@ -105,4 +105,11 @@ if __name__ == "__main__":
 
     for exp in range(5):
         args.exp = str(exp)
-        run_star(args)
+        if args.algo == "hrac":
+            run_hrac(args)
+        elif args.algo == "star":
+            run_star(args)
+        elif args.algo == "hiro":
+            run_hiro(args)
+        elif args.algo == "gara":
+            run_gara(args)

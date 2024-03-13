@@ -16,10 +16,9 @@ def read_results(exp, alg):
     success = []
     dist = []
     n_runs = 0
-    # file = 'paper_exp/' + exp + '/' + alg + '/' + exp + '_' + alg + '_' + str(run) + '_2.csv'
-    dir = 'paper_exp/' + exp + '/' + alg + '/'
+    dir = 'results/'
     for file in os.listdir(dir):
-        if file.endswith(".csv"):
+        if file.endswith(exp + "_" + alg) and file.endswith(".csv"):
             frames = []
             s = []
             d = []
@@ -46,25 +45,25 @@ def read_results(exp, alg):
 
 def plot(exp, n_runs, ax, window=30, mode='nearest', label='exp'):
     if exp == 'AntMaze':
-        alg = ['gara', 'garaold', 'hrac', 'hiro', 'lesson']
+        alg = ['star', 'star', 'hrac', 'hiro', 'lesson']
     else:
-        alg = ['gara', 'hrac', 'hiro', 'lesson']
+        alg = ['star', 'hrac', 'hiro', 'lesson']
 
     r = dict()
     v = dict()
     for a in alg:
         frames, r[a], v[a] = read_results(exp, a)
 
-    # Plot gara
-    ax.plot(frames, uniform_filter1d(r['gara'], size=window, mode=mode),'tab:orange', label='StarGARA')
-    ax.fill_between(frames, uniform_filter1d(r['gara'] + v['gara'] / 2, size=window, mode=mode),
-                    uniform_filter1d(r['gara'] - v['gara'] / 2, size=window, mode=mode), facecolor='tab:orange', alpha=0.2)
+    # Plot star
+    ax.plot(frames, uniform_filter1d(r['star'], size=window, mode=mode),'tab:orange', label='STAR')
+    ax.fill_between(frames, uniform_filter1d(r['star'] + v['star'] / 2, size=window, mode=mode),
+                    uniform_filter1d(r['star'] - v['star'] / 2, size=window, mode=mode), facecolor='tab:orange', alpha=0.2)
 
-    # Plot garaold
+    # Plot starold
     if exp == 'AntMaze':
-        ax.plot(frames, uniform_filter1d(r['garaold'], size=window, mode=mode), 'tab:red', label='GARA')
-        ax.fill_between(frames, uniform_filter1d(r['garaold'] + v['garaold'] / 2, size=window, mode=mode),
-                        uniform_filter1d(r['garaold'] - v['garaold'] / 2, size=window, mode=mode), facecolor='tab:red',
+        ax.plot(frames, uniform_filter1d(r['star'], size=window, mode=mode), 'tab:red', label='star')
+        ax.fill_between(frames, uniform_filter1d(r['star'] + v['star'] / 2, size=window, mode=mode),
+                        uniform_filter1d(r['star'] - v['star'] / 2, size=window, mode=mode), facecolor='tab:red',
                         alpha=0.2)
     # Plot hrac
     ax.plot(frames, uniform_filter1d(r['hrac'], size=window, mode=mode), 'tab:green', label='HRAC')
@@ -76,7 +75,7 @@ def plot(exp, n_runs, ax, window=30, mode='nearest', label='exp'):
     ax.fill_between(frames, uniform_filter1d(r['hiro'] + v['hiro'] / 2, size=window, mode=mode),
                     uniform_filter1d(r['hiro'] - v['hiro'] / 2, size=window, mode=mode), facecolor='tab:blue', alpha=0.2)
 
-    # Plot hess
+    # Plot lesson
     ax.plot(frames, uniform_filter1d(r['lesson'], size=window, mode=mode), 'tab:brown', label='LESSON')
     ax.fill_between(frames, uniform_filter1d(r['lesson'] + v['lesson'] / 2, size=window, mode=mode),
                     uniform_filter1d(r['lesson'] - v['lesson'] / 2, size=window, mode=mode), facecolor='tab:brown', alpha=0.2)
@@ -99,7 +98,7 @@ def plot_all(n_runs=3, window=30, mode='nearest'):
 
     experiments = ['AntMaze', 'AntFall', 'AntMazeCam']
     # Call plot function for each experiment and customize the colors
-    for i, exp_name in enumerate(['AntMaze', 'AntFall', 'AntMazeCam']):
+    for i, exp_name in enumerate(experiments):
         ax = axes[i]
         label = exp_name
         ax = plot(exp_name, 3 , ax, window=30, mode='nearest', label=label)
@@ -129,3 +128,152 @@ def plot_all(n_runs=3, window=30, mode='nearest'):
     fig.add_artist(alg_legend)
     plt.show()
 
+def comparison_plot():
+    window = 20
+    mode = 'nearest'
+
+    experiments = ['AntMaze', 'AntFall', 'AntMazeCam']
+
+    # Create a new figure and specify the number of rows and columns
+    plt.subplots(1, 3, figsize=(18, 4))
+    plt.subplots_adjust(hspace=0.5)  # Adjust the vertical space between subplots
+
+    exp = 'AntMaze'
+    a = ['star', 'gara', 'hrac', 'hiro', 'lesson']
+
+    r = dict()
+    v = dict()
+
+    frames, r[a[0]], v[a[0]] = read_results(exp, a[0])
+    frames, r[a[1]], v[a[1]] = read_results(exp, a[1])
+    frames, r[a[2]], v[a[2]] = read_results(exp, a[2])
+    frames, r[a[3]], v[a[3]] = read_results(exp, a[3])
+    frames, r[a[4]], v[a[4]] = read_results(exp, a[4])
+
+    plt.subplot(1, 3, 1)
+
+    # Plot star
+    plt.plot(frames, uniform_filter1d(r['star'], size=window, mode=mode), 'tab:orange', label='STAR')
+    plt.fill_between(frames, uniform_filter1d(r['star'] + v['star'] / 2, size=window, mode=mode),
+                     uniform_filter1d(r['star'] - v['star'] / 2, size=window, mode=mode), facecolor='tab:orange',
+                     alpha=0.2)
+
+    plt.plot(frames, uniform_filter1d(r['gara'], size=window, mode=mode), 'tab:red', label='GARA')
+    plt.fill_between(frames, uniform_filter1d(r['gara'] + v['gara'] / 2, size=window, mode=mode),
+                     uniform_filter1d(r['gara'] - v['gara'] / 2, size=window, mode=mode), facecolor='tab:red',
+                     alpha=0.2)
+    # Plot hrac
+    plt.plot(frames, uniform_filter1d(r['hrac'], size=window, mode=mode), 'tab:green', label='HRAC')
+    plt.fill_between(frames, uniform_filter1d(r['hrac'] + v['hrac'] / 2, size=window, mode=mode),
+                     uniform_filter1d(r['hrac'] - v['hrac'] / 2, size=window, mode=mode), facecolor='tab:green',
+                     alpha=0.2)
+
+    # Plot hiro
+    plt.plot(frames, uniform_filter1d(r['hiro'], size=window, mode=mode), 'tab:blue', label='HIRO')
+    plt.fill_between(frames, uniform_filter1d(r['hiro'] + v['hiro'] / 2, size=window, mode=mode),
+                     uniform_filter1d(r['hiro'] - v['hiro'] / 2, size=window, mode=mode), facecolor='tab:blue',
+                     alpha=0.2)
+
+    # Plot lesson
+    plt.plot(frames, uniform_filter1d(r['lesson'], size=window, mode=mode), 'tab:brown', label='LESSON')
+    plt.fill_between(frames, uniform_filter1d(r['lesson'] + v['lesson'] / 2, size=window, mode=mode),
+                     uniform_filter1d(r['lesson'] - v['lesson'] / 2, size=window, mode=mode), facecolor='tab:brown',
+                     alpha=0.2)
+
+    plt.title(exp, fontsize=title_fontsize)
+    plt.grid(linestyle='--', alpha=0.5)  # Add a faint grid
+
+    plt.xlabel("Timesteps", fontsize=15)
+    plt.ylabel("Average success rate", fontsize=15)
+
+    # Manually create a combined legend for the entire figure
+    handles, labels = [], []
+    for ax in plt.gcf().get_axes():
+        h, l = ax.get_legend_handles_labels()
+        handles.extend(h)
+        labels.extend(l)
+
+    exp = 'AntFall'
+    alg = ['star', 'hrac', 'hiro', 'lesson']
+
+    r = dict()
+    v = dict()
+    for a in alg:
+        frames, r[a], v[a] = read_results(exp, a)
+
+    plt.subplot(1, 3, 2)
+
+    # Plot star
+    plt.plot(frames, uniform_filter1d(r['star'], size=window, mode=mode), 'tab:orange', label='STAR')
+    plt.fill_between(frames, uniform_filter1d(r['star'] + v['star']/2, size=window, mode=mode),
+                    uniform_filter1d(r['star'] - v['star']/2, size=window, mode=mode), facecolor='tab:orange', alpha=0.2)
+
+    # Plot hrac
+    plt.plot(frames, uniform_filter1d(r['hrac'], size=window, mode=mode), 'tab:green', label='HRAC')
+    plt.fill_between(frames, uniform_filter1d(r['hrac'] + v['hrac']/2, size=window, mode=mode),
+                    uniform_filter1d(r['hrac'] - v['hrac']/2, size=window, mode=mode), facecolor='tab:green', alpha=0.2)
+
+    # Plot hiro
+    plt.plot(frames, uniform_filter1d(r['hiro'], size=window, mode=mode), 'tab:blue', label='HIRO')
+    plt.fill_between(frames, uniform_filter1d(r['hiro'] + v['hiro']/2, size=window, mode=mode),
+                    uniform_filter1d(r['hiro'] - v['hiro']/2, size=window, mode=mode), facecolor='tab:blue', alpha=0.2)
+
+    # Plot lesson
+    plt.plot(frames, uniform_filter1d(r['lesson'], size=window, mode=mode), 'tab:brown', label='LESSON')
+    plt.fill_between(frames, uniform_filter1d(r['lesson'] + v['lesson']/2, size=window, mode=mode),
+                    uniform_filter1d(r['lesson'] - v['lesson']/2, size=window, mode=mode), facecolor='tab:brown', alpha=0.2)
+
+    plt.title(exp, fontsize=title_fontsize)
+    plt.grid(linestyle='--', alpha=0.5)  # Add a faint grid
+
+    plt.xlabel("Timesteps", fontsize = 15)
+    plt.ylabel("Average success rate", fontsize = 15)
+
+    exp = 'AntMazeCam'
+    alg = ['star', 'hrac', 'hiro', 'lesson']
+
+    r = dict()
+    v = dict()
+    for a in alg:
+        frames, r[a], v[a] = read_results(exp, a)
+
+    frames, r[alg[0]], v[alg[0]] = read_results(exp, alg[0])
+    frames, r[alg[2]], v[alg[2]] = read_results(exp, alg[2])
+
+    plt.subplot(1, 3, 3)
+
+    # Plot star
+    plt.plot(frames, uniform_filter1d(r['star'], size=window, mode=mode), 'tab:orange', label='STAR')
+    plt.fill_between(frames, uniform_filter1d(r['star'] + v['star']/2, size=window, mode=mode),
+                    uniform_filter1d(r['star'] - v['star']/2, size=window, mode=mode), facecolor='tab:orange', alpha=0.2)
+
+    # Plot hrac
+    plt.plot(frames, uniform_filter1d(r['hrac'], size=window, mode=mode), 'tab:green', label='HRAC')
+    plt.fill_between(frames, uniform_filter1d(r['hrac'] + v['hrac']/2, size=window, mode=mode),
+                    uniform_filter1d(r['hrac'] - v['hrac']/2, size=window, mode=mode), facecolor='tab:green', alpha=0.2)
+
+    # Plot hiro
+    plt.plot(frames, uniform_filter1d(r['hiro'], size=window, mode=mode), 'tab:blue', label='HIRO')
+    plt.fill_between(frames, uniform_filter1d(r['hiro'] + v['hiro']/2, size=window, mode=mode),
+                    uniform_filter1d(r['hiro'] - v['hiro']/2, size=window, mode=mode), facecolor='tab:blue', alpha=0.2)
+
+    # Plot lesson
+    plt.plot(frames, uniform_filter1d(r['lesson'], size=window, mode=mode), 'tab:brown', label='LESSON')
+    plt.fill_between(frames, uniform_filter1d(r['lesson'] + v['lesson']/2, size=window, mode=mode),
+                    uniform_filter1d(r['lesson'] - v['lesson']/2, size=window, mode=mode), facecolor='tab:brown', alpha=0.2)
+
+    plt.title(exp, fontsize=title_fontsize)
+    plt.grid(linestyle='--', alpha=0.5)  # Add a faint grid
+
+    plt.xlabel("Timesteps", fontsize = 15)
+    plt.ylabel("Average success rate", fontsize = 15)
+
+
+    # Position the combined legend at the "lower center"
+    plt.figlegend(handles, labels, loc='lower center', bbox_to_anchor=(0.5, -0.15), ncol=5, fontsize=legend_fontsize)  # Increase the legend's font size
+
+    # Display the figure
+    plt.tight_layout()  # Adjust subplot layout for better spacing
+    # plt.show()
+    fname = "./comparison10runs.png"
+    plt.savefig(fname, dpi=300, bbox_inches='tight')
