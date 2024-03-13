@@ -1282,10 +1282,6 @@ def run_star(args):
             start_partition_idx = boss_policy.identify_partition(state)
             start_partition = np.array(boss_policy.G[start_partition_idx].inf + boss_policy.G[start_partition_idx].sup)
             
-
-            # epsilon *= args.boss_eps_decay
-            epsilon -= args.boss_eps_linear_decay
-            epsilon = max(epsilon, args.boss_eps_min) 
             target_partition_idx = boss_policy.select_partition(start_partition_idx, epsilon, goal)
             if target_partition_idx == goal_partition and goal_dim == goal.shape[0]:
                 target_partition_interval = utils.ndInterval(goal_dim, inf=[goal[i]-1 for i in range(goal_dim)], sup=[goal[i]+1 for i in range(goal_dim)])
@@ -2129,9 +2125,6 @@ def run_gara(args):
             start_partition_idx = boss_policy.identify_partition(state)
             start_partition = np.array(boss_policy.G[start_partition_idx].inf + boss_policy.G[start_partition_idx].sup)
             
-            # epsilon *= args.boss_eps_decay
-            epsilon -= args.boss_eps_linear_decay
-            epsilon = max(epsilon, args.boss_eps_min) 
             target_partition_idx = boss_policy.select_partition(start_partition_idx, epsilon, goal)
             if target_partition_idx == goal_partition and goal_dim == goal.shape[0]:
                 target_partition_interval = utils.ndInterval(goal_dim, inf=[goal[i]-1 for i in range(goal_dim)], sup=[goal[i]+1 for i in range(goal_dim)])

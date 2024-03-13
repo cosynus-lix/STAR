@@ -221,12 +221,11 @@ def plot_Ant_Maze_seq(regions, visits):
     fname = "./antmaze_repr.png"
     plt.savefig(fname, dpi=300, bbox_inches='tight')
 
-
 def read_partitions():
     visits = {'AntMaze':[], 'AntFall':[]}
     regions = {'AntMaze':[], 'AntFall':[]}
     experiments = ['AntMaze', 'AntFall']
-    dir = './'
+    dir = 'results/'
     for i in range(3):
         for e in experiments:
             file = dir + e + "_partitions_" + str(i)

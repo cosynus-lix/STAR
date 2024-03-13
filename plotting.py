@@ -277,3 +277,5 @@ def comparison_plot():
     # plt.show()
     fname = "./comparison10runs.png"
     plt.savefig(fname, dpi=300, bbox_inches='tight')
+
+comparison_plot()
