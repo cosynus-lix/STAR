@@ -8,6 +8,8 @@ import csv
 title_fontsize = 15
 legend_fontsize = 12
 
+dir = '/results/partitions/'
+
 def transform(regions):
     trans = []
     for r in regions:
@@ -225,7 +227,6 @@ def read_partitions():
     visits = {'AntMaze':[], 'AntFall':[]}
     regions = {'AntMaze':[], 'AntFall':[]}
     experiments = ['AntMaze', 'AntFall']
-    dir = '/exp_data/partitions/'
     for i in range(3):
         for e in experiments:
             file = dir + e + "_partitions_" + str(i) + ".csv"

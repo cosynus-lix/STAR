@@ -12,11 +12,13 @@ legend_fontsize = 18
 from scipy import stats
 from scipy.ndimage.filters import uniform_filter1d
 
+main_dir = '/results'
+
 def read_results(exp, alg):
     success = []
     dist = []
     n_runs = 0
-    dir = 'exp_data/' + exp + '/' + alg + '/'
+    dir = main_dir + exp + '/' + alg + '/'
     for file in os.listdir(dir):
         if file.startswith(exp + "_" + alg) and file.endswith(".csv"):
             frames = []
@@ -82,7 +84,7 @@ def plot(exp, n_runs, ax, window=30, mode='nearest', label='exp'):
 
     return ax
 
-def plot_all(n_runs=3, window=30, mode='nearest'):
+
     # Create a new figure and specify the number of rows and columns
     fig, axes = plt.subplots(1, 3, figsize=(18, 4))
     plt.subplots_adjust(wspace=0.4)  # Adjust the horizontal space between subplots

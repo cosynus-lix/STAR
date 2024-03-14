@@ -37,7 +37,6 @@ class DQN(nn.Module):
         x = F.relu(self.layer2(x))
         return self.layer3(x)
 
-
 class Actor(nn.Module):
     def __init__(self, state_dim, goal_dim, action_dim, max_action):
         super().__init__()
@@ -202,3 +201,41 @@ class ForwardModel():
 
     def save(self, path):
         self.model.save(path)
+
+# class ForwardModel(nn.Module):
+
+#     def __init__(self, state_dim, goal_dim, hidden_dim):
+#         super().__init__()
+#         self.state_dim = state_dim
+#         self.goal_dim = goal_dim
+#         self.fc1 = nn.Linear(state_dim + goal_dim, hidden_dim)
+#         self.fc2 = nn.Linear(hidden_dim, hidden_dim)
+#         self.fc3 = nn.Linear(hidden_dim, hidden_dim)
+#         self.fc4 = nn.Linear(hidden_dim, state_dim)
+    
+#     def forward(self, s, g):
+#         x = F.relu(self.fc1(torch.cat([s, g], 1)))
+#         x = F.relu(self.fc2(x))
+#         x = F.relu(self.fc3(x))
+#         x = self.fc4(x)
+#         return x
+    
+# def convert_h5(torch_model):
+#     """convert model to h5"""
+#     torch_model.eval()
+#     dummy_state = torch.randn(1, torch_model.state_dim).to(device)
+#     dummy_goal = torch.randn(1, torch_model.goal_dim).to(device)
+#     torch.onnx.export(torch_model,               
+#         (dummy_state, dummy_goal),
+#         "forward_model.onnx",   
+#         export_params=True,        
+#         opset_version=10,          
+#         do_constant_folding=True,  
+#         input_names = ['state', 'goal'],   
+#         output_names = ['output']
+#         )
+#     onnx_model = onnx.load("forward_model.onnx")
+#     onnx.checker.check_model(onnx_model)
+#     k_model = onnx_to_keras(onnx_model, ['state', 'goal'])
+    # tf_rep = prepare(onnx_model)
+    # tf_rep.export_graph("forward_model.h5")

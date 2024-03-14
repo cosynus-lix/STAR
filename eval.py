@@ -1,6 +1,6 @@
 import argparse
 
-from hrac.eval import eval_hrac
+from star.eval import eval_hrac
 
 
 if __name__ == "__main__":

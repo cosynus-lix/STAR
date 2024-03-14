@@ -2189,4 +2189,3 @@ def run_gara(args):
     output_df = pd.DataFrame(output_data)
     output_df.to_csv(os.path.join("./results", file_name+".csv"), float_format="%.4f", index=False)
     print("Training finished.")
-

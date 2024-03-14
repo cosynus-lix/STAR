@@ -1,6 +1,6 @@
 import argparse
 
-from hrac.train import run_hrac, run_star, run_hiro, run_gara
+from star.train import run_hrac, run_star, run_hiro, run_gara
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
