@@ -23,7 +23,7 @@ First, install [Docker](https://docs.docker.com/get-docker/).
 
 Then, clone the repository:
 ```
-git clone
+git clone https://github.com/cosynus-lix/STAR.git
 cd STAR
 ```
 
