@@ -19,7 +19,7 @@ The spatial abstraction takes the form of sets of states and is gradually learne
 STAR is composed of 3 agents as depicted in the figure below:
 The Commander selects an abstract goal to visit, the Tutor provides a sequence of subgoals that gradually help the Controller to reach the abstract goal. The Controller takes actions into the environment to transition from one state to the next.
 The refinement process analyses reachability relations between states and improves the goal abstraction to seperate sets of states exhibiting different dynamics in the task.
-![STAR algorithm schematic](schema.png)
+![STAR algorithm schematic](docs/schema.png)
 
 
 ## Usage
