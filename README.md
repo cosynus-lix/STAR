@@ -13,6 +13,14 @@ This is an implementation for our paper "[Reconciling Spatial and Temporal Abstr
 
 Additionally, this code requires the installation of NNet library https://github.com/sisl/NNet.git and the NeuralVerification.jl library https://github.com/sisl/NeuralVerification.jl.
 
+## Overview
+STAR (Spatial and Temporal Abstraction via Reachability) is a Hierarchical Reinforcement Learining algorithm that introduces a both a spatial abstraction a temporal abstraction.
+The spatial abstraction takes the form of sets of states and is gradually learned by analyzing reachability relations in the environment.
+STAR is composed of 3 agents as depicted in the figure below:
+The Commander selects an abstract goal to visit, the Tutor provides a sequence of subgoals that gradually help the Controller to reach the abstract goal. The Controller takes actions into the environment to transition from one state to the next.
+The refinement process analyses reachability relations between states and improves the goal abstraction to seperate sets of states exhibiting different dynamics in the task.
+![STAR algorithm schematic](schema.png)
+
 
 ## Usage
 
