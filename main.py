@@ -36,6 +36,7 @@ if __name__ == "__main__":
     parser.add_argument("--fwd_batch_size", default=64, type=int)
     parser.add_argument("--fwd_hidden_dim", default=32, type=int)
     parser.add_argument("--fwd_embedding_dim", default=32, type=int)
+    parser.add_argument("--load_fwd_model", default=False, type=bool)
     
     parser.add_argument("--boss_propose_freq", default=30, type=int) # k 
     parser.add_argument("--train_boss_freq", default=1000, type=int)
