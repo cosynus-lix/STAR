@@ -1016,9 +1016,14 @@ def run_star(args):
 
     # Initialize forward model
     fwd_model = ForwardModel(state_dim, 2*goal_dim, args.fwd_hidden_dim, args.lr_fwd)
+    if args.load_fwd_model:
+        fwd_model.load("./models", args.env_name, args.algo)
+        print("Loaded Forward Model")
+    
     
     if args.load:
         try:
+            boss_policy.load("./models")
             manager_policy.load("./models")
             controller_policy.load("./models")
             print("Loaded successfully.")
@@ -1140,6 +1145,7 @@ def run_star(args):
                     output_data["dist"].append(-avg_controller_rew)
 
                     if args.save_models:
+                        fwd_model.save("./models", args.env_name, args.algo)
                         controller_policy.save("./models", args.env_name, args.algo)
                         manager_policy.save("./models", args.env_name, args.algo)
                         boss_policy.save("./models", args.env_name, args.algo)
@@ -1337,6 +1343,7 @@ def run_star(args):
     output_data["dist"].append(-avg_controller_rew)
 
     if args.save_models:
+        fwd_model.save("./models", args.env_name, args.algo)
         controller_policy.save("./models", args.env_name, args.algo)
         manager_policy.save("./models", args.env_name, args.algo)
         boss_policy.save("./models", args.env_name, args.algo)
@@ -1905,9 +1912,13 @@ def run_gara(args):
 
     # Initialize forward model
     fwd_model = ForwardModel(state_dim, 2*goal_dim, args.fwd_hidden_dim, args.lr_fwd)
+    if args.load_fwd_model:
+        fwd_model.load("./models", args.env_name, args.algo)
+        print("Loaded Forward Model")
     
     if args.load:
         try:
+            boss_policy.load("./models")
             controller_policy.load("./models")
             print("Loaded successfully.")
             just_loaded = True

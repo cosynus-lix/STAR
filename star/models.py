@@ -199,8 +199,15 @@ class ForwardModel():
         loss = mean_squared_error(y[:, :self.state_dim], self.predict(x, gt))
         return loss
 
-    def save(self, path):
-        self.model.save(path)
+    
+    def load(self, dir, env_name, algo):
+        self.model = tf.keras.models.load_model("{}/{}_{}_BossForwardModel".format(dir, env_name, algo))
+
+    def save(self, dir, env_name=None, algo=None):
+        if env_name == None and algo == None:
+            self.model.save(dir)
+        else:
+            self.model.save("{}/{}_{}_BossForwardModel".format(dir, env_name, algo))
 
 # class ForwardModel(nn.Module):
 
