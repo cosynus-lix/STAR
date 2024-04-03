@@ -51,15 +51,15 @@ def create_maze_env(env_name=None, seed=0):
     new_pos = [np.random.normal(), 2]
     return AntMazeEnv(maze_id=maze_id, maze_size_scaling=8, seed=seed, new_pos=new_pos)
   
-  elif env_name.endswith('U-Maze'):
-    maze_id = 'U-Maze'
+  elif env_name.endswith('2Rooms'):
+    maze_id = '2Rooms'
     return AntMazeEnv(maze_id=maze_id, maze_size_scaling=4, seed=seed)
   
-  elif env_name.endswith('3Rooms-Maze'):
+  elif env_name.endswith('3Rooms'):
     maze_id = '3Rooms-Maze'
     return AntMazeEnv(maze_id=maze_id, maze_size_scaling=4, seed=seed)
 
-  elif env_name.endswith('4Rooms-Maze'):
+  elif env_name.endswith('4Rooms'):
     maze_id = '4Rooms-Maze'
     return AntMazeEnv(maze_id=maze_id, maze_size_scaling=4, seed=seed)
 

@@ -9,7 +9,7 @@ if __name__ == "__main__":
     parser.add_argument("--eval_freq", default=5e3, type=float)
     parser.add_argument("--max_timesteps", default=5e6, type=float)
     parser.add_argument("--save_models", action="store_true")
-    parser.add_argument("--env_name", default="AntMaze", type=str)
+    parser.add_argument("--env_name", default="2Rooms", type=str)
     parser.add_argument("--load", default=False, type=bool)
     parser.add_argument("--log_dir", default="./logs", type=str)
     parser.add_argument("--no_correction", action="store_true")
@@ -36,7 +36,6 @@ if __name__ == "__main__":
     parser.add_argument("--fwd_batch_size", default=64, type=int)
     parser.add_argument("--fwd_hidden_dim", default=32, type=int)
     parser.add_argument("--fwd_embedding_dim", default=32, type=int)
-    parser.add_argument("--load_fwd_model", default=False, type=bool)
     
     parser.add_argument("--boss_propose_freq", default=30, type=int) # k 
     parser.add_argument("--train_boss_freq", default=1000, type=int)
