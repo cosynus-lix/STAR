@@ -113,7 +113,7 @@ def construct_maze(maze_id='Maze'):
         [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
         [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
     ]
-  elif maze_id == '3Rooms-Maze':
+  elif maze_id == '3Rooms':
     structure = [
         [1, 1, 1, 1, 1, 1, 1, 1, 1, 1,],
         [1, 1, 1, 1, 1, 1, 1, 1, 1, 1,],
@@ -126,7 +126,7 @@ def construct_maze(maze_id='Maze'):
         [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
         [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
     ]
-  elif maze_id == '4Rooms-Maze':
+  elif maze_id == '4Rooms':
     structure = [
         [1, 1, 1, 1, 1, 1, 1, 1, 1, 1,],
         [1, 1, 1, 1, 1, 1, 1, 1, 1, 1,],

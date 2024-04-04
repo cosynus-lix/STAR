@@ -8,7 +8,7 @@ if __name__ == "__main__":
     parser.add_argument("--seed", default=2, type=int)
     parser.add_argument("--eval_freq", default=5e3, type=float)
     parser.add_argument("--max_timesteps", default=5e6, type=float)
-    parser.add_argument("--save_models", action="store_true")
+    parser.add_argument("--save_models", default=True, action="store_true")
     parser.add_argument("--env_name", default="2Rooms", type=str)
     parser.add_argument("--load", default=False, type=bool)
     parser.add_argument("--log_dir", default="./logs", type=str)
@@ -103,13 +103,21 @@ if __name__ == "__main__":
         print('{}: {}'.format(key, val))
 
 
-    for exp in range(5):
-        args.exp = str(exp)
-        if args.algo == "hrac":
-            run_hrac(args)
-        elif args.algo == "star":
-            run_star(args)
-        elif args.algo == "hiro":
-            run_hiro(args)
-        elif args.algo == "gara":
-            run_gara(args)
+    # for exp in range(5):
+    #     args.exp = str(exp)
+    #     if args.algo == "hrac":
+    #         run_hrac(args)
+    #     elif args.algo == "star":
+    #         run_star(args)
+    #     elif args.algo == "hiro":
+    #         run_hiro(args)
+    #     elif args.algo == "gara":
+    #         run_gara(args)
+
+    run_star(args)
+    args.load = True
+    args.env_name = "3Rooms"
+    args.load_fwd_model = True
+    run_star(args)
+    args.env_name = "4Rooms"
+    run_star(args)
