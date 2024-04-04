@@ -10,6 +10,7 @@ if __name__ == "__main__":
     parser.add_argument("--max_timesteps", default=5e6, type=float)
     parser.add_argument("--save_models", default=True, action="store_true")
     parser.add_argument("--env_name", default="2Rooms", type=str)
+    parser.add_argument("--loaded_env_name", default=None, type=str)
     parser.add_argument("--load", default=False, type=bool)
     parser.add_argument("--log_dir", default="./logs", type=str)
     parser.add_argument("--no_correction", action="store_true")
@@ -114,10 +115,27 @@ if __name__ == "__main__":
     #     elif args.algo == "gara":
     #         run_gara(args)
 
+    # Train on 2 Rooms
+    args.exp = 'vanilla'
     run_star(args)
-    args.load = True
+    # Train on 3 Rooms
+    args.exp = 'vanilla'
     args.env_name = "3Rooms"
+    run_star(args)
+    # Transfer on 3 Rooms
+    args.exp = 'transfer'
+    args.load = True
+    args.loaded_env_name = "2Rooms"
     args.load_fwd_model = True
     run_star(args)
+
+    # Train on 4 Rooms
+    args.exp = 'vanilla'
     args.env_name = "4Rooms"
+    run_star(args)
+    # Transfer on 4 Rooms
+    args.exp = 'transfer'
+    args.load = True
+    args.loaded_env_name = "2Rooms"
+    args.load_fwd_model = True
     run_star(args)
