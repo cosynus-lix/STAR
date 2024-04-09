@@ -102,7 +102,6 @@ def boltzmann_policy(Q, temperature, nA, goal=None):
 
     return policy_fn
 
-
 class Boss(object):
 
     def __init__(self, state_dim, goal_dim, G_init, policy, reachability_algorithm, goal_cond=True, mem_capacity=1e5):
@@ -426,7 +425,11 @@ class Boss(object):
                 self.split(forward_model, start_partition=goal_pair[0], target_partition=goal_pair[1], replay_buffer=replay_buffer, tau1=tau1, tau2=tau2)
 
     
-    def save(self, dir, env_name, time):
+    def save(self, dir, env_name, time, algo='STAR'):
+        """
+        Save the partitions, the Q table and transition graph
+        """
+        # save the partitions
         with open("{}/{}_{}_BossPartitions.pth".format(dir, env_name, time), 'w', encoding='UTF8') as f:
             # create the csv writer
             writer = csv.writer(f)
@@ -434,18 +437,36 @@ class Boss(object):
                 # write a row to the csv file
                 writer.writerow(self.G[i].inf + self.G[i].sup)
         f.close()
-        
+
+        # Save Q-table if policy is Q-learning
+        if self.policy == 'Q-learning':
+            np.save(os.path.join(dir, "{}_{}_BossQTable.npy".format(env_name, algo)), self.Q)
+            print("Qtable saved")
+
+        # Save automaton as a .gpickle file
+        automaton_path = os.path.join(dir, f"{env_name}_{algo}_BossAutomaton.gpickle")
+        nx.write_gpickle(self.automaton, automaton_path)
     
     def load(self, dir, env_name, algo):
+        # Load the partitions
         G = []
-        with open("{}/{}_{}_ManagerActor.pth".format(dir, env_name, algo), 'r') as f:
+        with open("{}/{}_{}_BossPartitions.pth".format(dir, env_name, algo), 'r') as f:
             csv_reader = csv.reader(f)
             for line in csv_reader:
                 # process each line
-                G.append(ndInterval(self.goal_dim, inf=[float(line[i]) for i in range(self.goal_dim // 2)], sup=[float(line[i]) for i in range(self.goal_dim // 2, self.goal_dim)]))
+                G.append(ndInterval(len(line)//2, inf=[float(line[i]) for i in range(len(line) // 2)], sup=[float(line[i]) for i in range(len(line) // 2, len(line))]))
         f.close()
-        self.G = G      
+        self.G = G
+        
+        # Load Q-table if policy is Q-learning
+        if os.path.exists("{}/{}_{}_BossQTable.npy".format(dir, env_name, algo)):
+            self.Q = np.load("{}/{}_{}_BossQTable.npy".format(dir, env_name, algo))
 
+        # Load automaton
+        if os.path.exists("{}/{}_{}_BossAutomaton.gpickle".format(dir, env_name, algo)):
+            self.automaton = nx.read_gpickle("{}/{}_{}_BossAutomaton.gpickle".format(dir, env_name, algo))
+              
+              
 class Manager(object):
     def __init__(self, state_dim, goal_dim, action_dim, actor_lr,
                  critic_lr, candidate_goals, correction=True,
@@ -671,7 +692,6 @@ class Manager(object):
         self.critic_target.load_state_dict(torch.load("{}/{}_{}_ManagerCriticTarget.pth".format(dir, env_name, algo)))
         # self.actor_optimizer.load_state_dict(torch.load("{}/{}_{}_ManagerActorOptim.pth".format(dir, env_name, algo)))
         # self.critic_optimizer.load_state_dict(torch.load("{}/{}_{}_ManagerCriticOptim.pth".format(dir, env_name, algo)))
-
 
 class Controller(object):
     def __init__(self, state_dim, goal_dim, action_dim, max_action, actor_lr,
