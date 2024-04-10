@@ -104,7 +104,7 @@ def boltzmann_policy(Q, temperature, nA, goal=None):
 
 class Boss(object):
 
-    def __init__(self, state_dim, goal_dim, G_init, policy, reachability_algorithm, goal_cond=True, mem_capacity=1e5):
+    def __init__(self, state_dim, goal_dim, G_init, policy, reachability_algorithm, goal_cond=True, mem_capacity=1e5, mode='deterministic'):
         self.G = G_init
         self.reachability_algorithm = reachability_algorithm
         self.state_dim = state_dim
@@ -128,6 +128,7 @@ class Boss(object):
         self.high_steps = defaultdict(lambda: 0)
         self.unsafe = []
         self.splits = []
+        self.mode = mode
     
     def identify_goal(self, goal):
         i = -1
@@ -249,8 +250,12 @@ class Boss(object):
 
         input_lower = self.G[start_partition].inf + self.G[target_partition].inf + self.G[target_partition].sup
         input_upper = self.G[start_partition].sup + self.G[target_partition].inf + self.G[target_partition].sup
-        output_lower = self.G[target_partition].inf
-        output_upper = self.G[target_partition].sup
+        if self.mode == 'deterministic':
+            output_lower = self.G[target_partition].inf
+            output_upper = self.G[target_partition].sup
+        elif self.mode == 'stochastic':
+            output_lower = [0.5]
+            output_upper = [1.0]
 
         model.save("./nnet/forward_" + str(start_partition) + "_" + str(target_partition) + ".h5")
         convert("./nnet/forward_" + str(start_partition) + "_" + str(target_partition) + ".h5", input_lower,
@@ -465,8 +470,7 @@ class Boss(object):
         # Load automaton
         if os.path.exists("{}/{}_{}_BossAutomaton.gpickle".format(dir, env_name, algo)):
             self.automaton = nx.read_gpickle("{}/{}_{}_BossAutomaton.gpickle".format(dir, env_name, algo))
-              
-              
+                            
 class Manager(object):
     def __init__(self, state_dim, goal_dim, action_dim, actor_lr,
                  critic_lr, candidate_goals, correction=True,
