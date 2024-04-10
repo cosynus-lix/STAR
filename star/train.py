@@ -12,7 +12,7 @@ from collections import defaultdict
 
 import star.utils as utils
 import star.agents as agents
-from star.models import ANet, ForwardModel
+from star.models import ANet, ForwardModel, StochasticForwardModel
 from envs import EnvWithGoal, GatherEnv
 from envs.create_maze_env import create_maze_env
 from envs.create_gather_env import create_gather_env
@@ -1015,7 +1015,13 @@ def run_star(args):
     controller_buffer = utils.ReplayBuffer(maxsize=args.ctrl_buffer_size)
 
     # Initialize forward model
-    fwd_model = ForwardModel(state_dim, 2*goal_dim, args.fwd_hidden_dim, args.lr_fwd)
+    if args.env_name in ["AntMaze", "AntPush", "AntFall", "AntMazeCam", "2Rooms", "3Rooms", "4Rooms", "PointMaze"]:
+        fwd_model = ForwardModel(state_dims, 2*goal_dim, args.fwd_hidden_dim, args.lr_fwd)
+    elif args.env_name in ["AntMazeStochastic"]:
+        fwd_model = StochasticForwardModel(state_dims, 2*goal_dim, args.fwd_hidden_dim, args.lr_fwd)
+    else:
+        raise NotImplementedError
+    
     if args.load_fwd_model:
         fwd_model.load("./models", args.loaded_env_name, args.algo)
         print("Loaded Forward Model")
