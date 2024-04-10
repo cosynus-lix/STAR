@@ -5,6 +5,7 @@ import torch.nn.functional as F
 import tensorflow as tf
 from keras.layers import Input, Dense
 from keras.optimizers import Adam
+from keras.metrics import BinaryCrossEntropy
 
 from sklearn.metrics import mean_squared_error
 
@@ -176,7 +177,10 @@ class ForwardModel():
 
     def __init__(self, state_dim, goal_dim, hidden_dim, learning_rate):
         self.goal_dim = goal_dim
-        self.state_dim = goal_dim // 2
+        if state_dim:
+            self.state_dim = state_dim
+        else:
+            self.state_dim = goal_dim // 2
         self.model = tf.keras.Sequential([
             Input((self.state_dim + self.goal_dim,)),
             Dense(hidden_dim, activation='relu'),
@@ -186,17 +190,55 @@ class ForwardModel():
         self.model.compile(loss='mse', optimizer=Adam(learning_rate))
     
     def fit(self, states, goals, reached_states, n_epochs=100, verbose=False):
-        input = tf.concat((states[:, :self.state_dim], goals), axis=1)
-        self.model.fit(input, reached_states[:, :self.state_dim], epochs=n_epochs, verbose=verbose)
+        input = tf.concat((states[:, self.state_dim], goals), axis=1)
+        self.model.fit(input, reached_states[:, self.state_dim], epochs=n_epochs, verbose=verbose)
     
     def predict(self, states, goals, verbose=False):
-        input = tf.concat((states[:, :self.state_dim], goals), axis=1)
+        input = tf.concat((states[:, self.state_dim], goals), axis=1)
         return self.model.predict(input, verbose=verbose)
     
     def measure_error(self, partition_buffer, batch_size, Gs = None, Gt=None):
         # x, gs, y, gt, rl, rh = partition_buffer.sample(batch_size)
         x, gs, y, gt, rl, rh = partition_buffer.target_sample(Gs, Gt, batch_size)
-        loss = mean_squared_error(y[:, :self.state_dim], self.predict(x, gt))
+        loss = mean_squared_error(y[:, self.state_dim], self.predict(x, gt))
+        return loss
+    
+    def load(self, dir, env_name, algo):
+        self.model = tf.keras.models.load_model("{}/{}_{}_BossForwardModel".format(dir, env_name, algo))
+
+    def save(self, dir, env_name=None, algo=None):
+        if env_name == None and algo == None:
+            self.model.save(dir)
+        else:
+            self.model.save("{}/{}_{}_BossForwardModel".format(dir, env_name, algo))
+
+class StochasticForwardModel():
+
+    def __init__(self, state_dim, goal_dim, hidden_dim, learning_rate):
+        self.goal_dim = goal_dim
+        if state_dim:
+            self.state_dim = state_dim
+        else:
+            self.state_dim = goal_dim // 2
+        self.model = tf.keras.Sequential([
+            Input((self.state_dim + self.goal_dim,)),
+            Dense(hidden_dim, activation='relu'),
+            Dense(hidden_dim, activation='relu'),
+            Dense(1)
+        ])
+        self.model.compile(loss=BinaryCrossEntropy(), optimizer=Adam(learning_rate))
+    
+    def fit(self, states, goals, reached_states, n_epochs=100, verbose=False):
+        input = tf.concat((states[:, self.state_dim], goals), axis=1)
+        self.model.fit(input, reached_states[:, self.state_dim], epochs=n_epochs, verbose=verbose)
+    
+    def predict(self, states, goals, verbose=False):
+        input = tf.concat((states[:, self.state_dim], goals), axis=1)
+        return self.model.predict(input, verbose=verbose)
+    
+    def measure_error(self, partition_buffer, batch_size, Gs = None, Gt=None):
+        x, gs, y, gt, rl, rh = partition_buffer.target_sample(Gs, Gt, batch_size)
+        loss = sklearn.metrics.BinaryCrossEntropy(y[:, self.state_dim], self.predict(x, gt))
         return loss
 
     
@@ -208,6 +250,7 @@ class ForwardModel():
             self.model.save(dir)
         else:
             self.model.save("{}/{}_{}_BossForwardModel".format(dir, env_name, algo))
+
 
 # class ForwardModel(nn.Module):
 
