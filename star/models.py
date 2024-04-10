@@ -5,7 +5,7 @@ import torch.nn.functional as F
 import tensorflow as tf
 from keras.layers import Input, Dense
 from keras.optimizers import Adam
-from keras.metrics import BinaryCrossEntropy
+from keras.losses import BinaryCrossentropy
 
 from sklearn.metrics import mean_squared_error
 
@@ -226,7 +226,7 @@ class StochasticForwardModel():
             Dense(hidden_dim, activation='relu'),
             Dense(1)
         ])
-        self.model.compile(loss=BinaryCrossEntropy(), optimizer=Adam(learning_rate))
+        self.model.compile(loss=BinaryCrossentropy(), optimizer=Adam(learning_rate))
     
     def fit(self, states, goals, reached_states, n_epochs=100, verbose=False):
         input = tf.concat((states[:, self.state_dim], goals), axis=1)
