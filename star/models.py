@@ -175,7 +175,7 @@ class ForwardModel():
             self.features = state_dim
         else:
             self.state_dim = goal_dim // 2
-            self.features = list(range(self.state_dim + 1))
+            self.features = list(range(self.state_dim))
         
         self.model = tf.keras.Sequential([
             Input((self.state_dim + self.goal_dim,)),
@@ -217,7 +217,7 @@ class StochasticForwardModel():
             self.features = state_dim
         else:
             self.state_dim = goal_dim // 2
-            self.features = list(range(self.state_dim + 1))
+            self.features = list(range(self.state_dim))
 
         self.model = tf.keras.Sequential([
             Input((self.state_dim + self.goal_dim,)),
