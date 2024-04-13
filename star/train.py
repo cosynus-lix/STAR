@@ -28,6 +28,11 @@ def evaluate_policy(env, env_name, manager_policy, controller_policy,
                     manager_propose_frequency=10, eval_idx=0, eval_episodes=5):
     print("Starting evaluation number {}...".format(eval_idx))
     env.evaluate = True
+    video_dir = "Videos"
+
+    if not os.path.exists(video_dir):
+        os.makedirs(video_dir)
+    video_path = os.path.join(video_dir, f"video_{env_name}_{"hrac"}_{eval_idx}.mp4")
 
     with torch.no_grad():
         avg_reward = 0.
@@ -43,6 +48,11 @@ def evaluate_policy(env, env_name, manager_policy, controller_policy,
             done = False
             step_count = 0
             env_goals_achieved = 0
+
+            video_writer = None
+            if eval_ep == 4:
+                video_writer = imageio.get_writer(video_path, fps=30)
+
             while not done:
                 if step_count % manager_propose_frequency == 0:
                     subgoal = manager_policy.sample_goal(state, goal)
@@ -65,6 +75,13 @@ def evaluate_policy(env, env_name, manager_policy, controller_policy,
                 avg_controller_rew += calculate_controller_reward(state, subgoal, new_state, ctrl_rew_scale)
 
                 state = new_state
+
+                if video_writer is not None:
+                    data_rgb = env.render(mode='rgb_array', width=512, height=512, camera_name="top_down")
+                    video_writer.append_data(data_rgb)
+
+            if video_writer is not None:
+                video_writer.close()
 
         avg_reward /= eval_episodes
         avg_controller_rew /= global_steps
@@ -91,6 +108,15 @@ def evaluate_policy_star(env, env_name, goal_dim, grid, boss_policy, manager_pol
     resolution = 50
     g_low = [0, 0]
     g_high = [20, 20]
+
+    video_dir = "Videos"
+    if not os.path.exists(video_dir):
+        os.makedirs(video_dir)
+    
+    # Set the video path
+    video_path = os.path.join(video_dir, f"video_{env_name}_{"star"}_{eval_idx}.mp4")
+    video_writer = None
+
     with torch.no_grad():
         avg_reward = 0.
         avg_controller_rew = 0.
@@ -112,6 +138,11 @@ def evaluate_policy_star(env, env_name, goal_dim, grid, boss_policy, manager_pol
             done = False
             step_count = 0
             env_goals_achieved = 0
+            
+             # Initialize video writer only for the 4th episode
+            if eval_ep == 4:
+                video_writer = imageio.get_writer(video_path, fps=30)
+
             while not done:
                 if step_count % boss_propose_frequency == 0:
                     start_partition_idx = boss_policy.identify_partition(state)
@@ -161,6 +192,16 @@ def evaluate_policy_star(env, env_name, goal_dim, grid, boss_policy, manager_pol
                 avg_controller_rew += calculate_controller_reward(state, subgoal, new_state, ctrl_rew_scale)
 
                 state = new_state
+
+                # Save frame to video only during the 4th episode
+                if video_writer is not None:
+                    data_rgb = env.render(mode='rgb_array', width=512, height=512, camera_name="top_down")
+                    video_writer.append_data(data_rgb)
+
+            # Close video writer if it was used for the 4th episode
+            if video_writer is not None:
+                video_writer.close()
+                video_writer = None  # Reset for safety
 
         avg_reward /= eval_episodes
         avg_controller_rew /= global_steps
