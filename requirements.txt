@@ -7,3 +7,4 @@ mujoco_py
 networkx
 scikit-learn
 seaborn
+imageio-ffmpeg

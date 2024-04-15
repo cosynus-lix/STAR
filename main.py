@@ -10,7 +10,7 @@ if __name__ == "__main__":
     parser.add_argument("--eval_freq", default=5e3, type=float)
     parser.add_argument("--max_timesteps", default=5e6, type=float)
     parser.add_argument("--save_models", default=True, action="store_true")
-    parser.add_argument("--env_name", default="2Rooms", type=str)
+    parser.add_argument("--env_name", default="AntFall", type=str)
     parser.add_argument("--loaded_env_name", default=None, type=str)
     parser.add_argument("--load", default=False, type=bool)
     parser.add_argument("--log_dir", default="./logs", type=str)
@@ -84,7 +84,7 @@ if __name__ == "__main__":
 
     # Reachability Parameters
     parser.add_argument("--tau1", default="0.7", type=float)
-    parser.add_argument("--tau2", default="0.1", type=float)
+    parser.add_argument("--tau2", default="0.01", type=float)
 
     # Experiment Number
     parser.add_argument("--exp", default="0", type=str)
@@ -105,18 +105,18 @@ if __name__ == "__main__":
         print('{}: {}'.format(key, val))
 
     def run(args):
-                if args.algo == "hrac":
-                    run_hrac(args)
-                elif args.algo == "star":
-                    run_star(args)
-                elif args.algo == "hiro":
-                    run_hiro(args)
-                elif args.algo == "gara":
-                    run_gara(args)
+        if args.algo == "hrac":
+            run_hrac(args)
+        elif args.algo == "star":
+            run_star(args)
+        elif args.algo == "hiro":
+            run_hiro(args)
+        elif args.algo == "gara":
+            run_gara(args)
     
     ### Standard Experiments
     if args.mode == 'vanilla':
-        for exp in range(5):
+        for exp in range(1):
             args.exp = str(exp)
             run(args)
             
@@ -124,26 +124,26 @@ if __name__ == "__main__":
     if args.mode == 'transfer':
         for exp in range(5):
             # Train on 2 Rooms
-            args.exp = 'vanilla'
+            args.exp = 'vanilla' + str(exp)
             run_star(args)
         
             # Train on 3 Rooms
-            args.exp = 'vanilla'
+            args.exp = 'vanilla' + str(exp)
             args.env_name = "3Rooms"
             run(args)
             # Transfer on 3 Rooms
-            args.exp = 'transfer'
+            args.exp = 'transfer' + str(exp)
             args.load = True
             args.loaded_env_name = "2Rooms"
             args.load_fwd_model = True
             run(args)
 
             # Train on 4 Rooms
-            args.exp = 'vanilla'
+            args.exp = 'vanilla' + str(exp)
             args.env_name = "4Rooms"
             run(args)
             # Transfer on 4 Rooms
-            args.exp = 'transfer'
+            args.exp = 'transfer' + str(exp)
             args.load = True
             args.loaded_env_name = "2Rooms"
             args.load_fwd_model = True

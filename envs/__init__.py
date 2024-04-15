@@ -98,7 +98,7 @@ class EnvWithGoal(object):
         self.distance_threshold = 5 if env_name in ['AntMaze', 'AntPush', 'AntFall', 'AntMazeCam', 'MazeStochastic', "2Rooms", "3Rooms", "4Rooms"] else 1
         if env_name in ['AntMazeCam']:
             self.cam = False 
-            self.alt_base_env = envs.create_maze_env.create_maze_env('AntMaze', self.seed())
+            self.alt_base_env = envs.create_maze_env.create_maze_env('AntMaze', 2)
         self.count = 0
         self.early_stop = False if env_name in ['AntMaze', 'AntPush', 'AntFall', 'AntMazeCam', 'MazeStochastic', 'PointMaze', "2Rooms", "3Rooms", "4Rooms"] else True
         self.early_stop_flag = False
@@ -171,8 +171,8 @@ class EnvWithGoal(object):
         }
         return next_obs, reward, done or self.count >= 500, info
 
-    def render(self):
-        self.base_env.render()
+    def render(self, mode, width, height, camera_name):
+        return self.base_env.render(mode=mode, width=width, height=height, camera_name=camera_name)
 
     @property
     def action_space(self):

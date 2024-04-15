@@ -16,7 +16,7 @@ from star.models import ANet, ForwardModel
 from envs import EnvWithGoal, GatherEnv
 from envs.create_maze_env import create_maze_env
 from envs.create_gather_env import create_gather_env
-
+import imageio
 
 """
 HIRO part adapted from
@@ -32,7 +32,7 @@ def evaluate_policy(env, env_name, manager_policy, controller_policy,
 
     if not os.path.exists(video_dir):
         os.makedirs(video_dir)
-    video_path = os.path.join(video_dir, f"video_{env_name}_{"hrac"}_{eval_idx}.mp4")
+    video_path = os.path.join(video_dir, f"video_{env_name}_hrac_{eval_idx}.mp4")
 
     with torch.no_grad():
         avg_reward = 0.
@@ -114,7 +114,7 @@ def evaluate_policy_star(env, env_name, goal_dim, grid, boss_policy, manager_pol
         os.makedirs(video_dir)
     
     # Set the video path
-    video_path = os.path.join(video_dir, f"video_{env_name}_{"star"}_{eval_idx}.mp4")
+    video_path = os.path.join(video_dir, f"video_{env_name}_star_{eval_idx}.mp4")
     video_writer = None
 
     with torch.no_grad():

@@ -441,7 +441,6 @@ class Boss(object):
         # Save Q-table if policy is Q-learning
         if self.policy == 'Q-learning':
             np.save(os.path.join(dir, "{}_{}_BossQTable.npy".format(env_name, algo)), self.Q)
-            print("Qtable saved")
 
         # Save automaton as a .gpickle file
         automaton_path = os.path.join(dir, f"{env_name}_{algo}_BossAutomaton.gpickle")
