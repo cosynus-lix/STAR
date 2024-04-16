@@ -886,7 +886,7 @@ def run_star(args):
     if args.env_name == "AntGather":
         env = GatherEnv(create_gather_env(args.env_name, args.seed), args.env_name)
         env.seed(args.seed)   
-    elif args.env_name in ["AntMaze", "AntMazeSparse", "AntPush", "AntFall", "AntMazeCam", "PointMaze", "AntMazeStochastic", "2Rooms", "3Rooms", "4Rooms"]:
+    elif args.env_name in ["AntMaze", "AntMazeSparse", "AntPush", "AntFall", "AntMazeCam", "PointMaze", "AntMazeStochastic", "2Rooms", "2RoomsCam", "3Rooms", "4Rooms"]:
         env = EnvWithGoal(create_maze_env(args.env_name, args.seed), args.env_name)
         env.seed(args.seed)
     else:
@@ -894,7 +894,7 @@ def run_star(args):
 
     if args.env_name in ["AntMaze", "AntMazeStochastic", "2Rooms", "3Rooms", "4Rooms"]:
         state_dims = None
-    elif args.env_name in ["AntMazeCam"]:
+    elif args.env_name in ["AntMazeCam", "2RoomsCam"]:
         state_dims = [0,1,3,4,5]
     elif args.env_name in ["AntFall"]:    
         state_dims = [0,1,2]
@@ -954,10 +954,10 @@ def run_star(args):
     torch.backends.cudnn.benchmark = False
 
     state_dim = state.shape[0]
-    if args.env_name in ["AntMaze", "AntPush", "AntFall", "AntMazeCam", "AntMazeStochastic", "2Rooms", "3Rooms", "4Rooms", "PointMaze"] and not state_dims:
+    if args.env_name in ["AntMaze", "AntPush", "AntFall", "AntMazeCam", "2RoomsCam", "AntMazeStochastic", "2Rooms", "3Rooms", "4Rooms", "PointMaze"] and not state_dims:
         goal_dim = goal.shape[0]
         goal_cond = True
-    elif args.env_name in ["AntMaze", "AntPush", "AntFall", "AntMazeCam", "AntMazeStochastic", "2Rooms", "3Rooms", "4Rooms", "PointMaze"] and state_dims:
+    elif args.env_name in ["AntMaze", "AntPush", "AntFall", "AntMazeCam", "2RoomsCam", "AntMazeStochastic", "2Rooms", "3Rooms", "4Rooms", "PointMaze"] and state_dims:
         goal_dim = len(state_dims)
         goal_cond = True
     elif state_dims:
@@ -970,13 +970,13 @@ def run_star(args):
     g_low = [0, 0]
     g_high = [20, 20]
     
-    if args.env_name in ["AntMaze", "AntMazeCam", "AntMazeStochastic", "2Rooms", "3Rooms", "4Rooms", "PointMaze"] and state_dims:
+    if args.env_name in ["AntMaze", "AntMazeCam", "2RoomsCam", "AntMazeStochastic", "2Rooms", "3Rooms", "4Rooms", "PointMaze"] and state_dims:
         G_init = [utils.ndInterval(goal_dim, inf=[0,0]+list(low[state_dims[2:]]), sup=[8,8]+list(high[state_dims[2:]])),
                 utils.ndInterval(goal_dim, inf=[8,0]+list(low[state_dims[2:]]), sup=[20,8]+list(high[state_dims[2:]])),
                 utils.ndInterval(goal_dim, inf=[8,8]+list(low[state_dims[2:]]), sup=[20,20]+list(high[state_dims[2:]])),
                 utils.ndInterval(goal_dim, inf=[0,8]+list(low[state_dims[2:]]), sup=[8,20]+list(high[state_dims[2:]]))
                 ]
-    elif args.env_name in ["AntMaze", "AntMazeCam", "AntMazeStochastic", "2Rooms", "3Rooms", "4Rooms", "PointMaze"] and not state_dims:
+    elif args.env_name in ["AntMaze", "AntMazeCam", "2RoomsCam", "AntMazeStochastic", "2Rooms", "3Rooms", "4Rooms", "PointMaze"] and not state_dims:
         G_init = [utils.ndInterval(goal_dim, inf=[0,0], sup=[8,8]),
                 utils.ndInterval(goal_dim, inf=[8,0], sup=[20,8]),
                 utils.ndInterval(goal_dim, inf=[8,8], sup=[20,20]),
