@@ -84,7 +84,7 @@ if __name__ == "__main__":
 
     # Reachability Parameters
     parser.add_argument("--tau1", default="0.7", type=float)
-    parser.add_argument("--tau2", default="0.1", type=float)
+    parser.add_argument("--tau2", default="0.01", type=float)
 
     # Experiment Number
     parser.add_argument("--exp", default="0", type=str)

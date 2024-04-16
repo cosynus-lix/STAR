@@ -7,7 +7,8 @@ from keras.layers import Input, Dense
 from keras.optimizers import Adam
 from keras.losses import BinaryCrossentropy
 
-from sklearn.metrics import mean_squared_error
+from sklearn.metrics import mean_squared_error, log_loss
+import numpy as np
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -237,7 +238,10 @@ class StochasticForwardModel():
     
     def measure_error(self, partition_buffer, batch_size, Gs = None, Gt=None):
         x, gs, y, gt, rl, rh = partition_buffer.target_sample(Gs, Gt, batch_size)
-        loss = sklearn.metrics.BinaryCrossEntropy(y[:, self.features], self.predict(x, gt))
+        reach1 = np.all(gt[:, :self.goal_dim//2] <= y[:, self.features] , axis=1)
+        reach2 = np.all(y[:, self.features] <= gt[:, self.goal_dim//2:] , axis=1)
+        reach = np.logical_and(reach1, reach2)
+        loss = log_loss(reach, self.predict(x, gt))
         return loss
 
     
@@ -249,41 +253,3 @@ class StochasticForwardModel():
             self.model.save(dir)
         else:
             self.model.save("{}/{}_{}_BossForwardModel".format(dir, env_name, algo))
-
-# class ForwardModel(nn.Module):
-
-#     def __init__(self, state_dim, goal_dim, hidden_dim):
-#         super().__init__()
-#         self.state_dim = state_dim
-#         self.goal_dim = goal_dim
-#         self.fc1 = nn.Linear(state_dim + goal_dim, hidden_dim)
-#         self.fc2 = nn.Linear(hidden_dim, hidden_dim)
-#         self.fc3 = nn.Linear(hidden_dim, hidden_dim)
-#         self.fc4 = nn.Linear(hidden_dim, state_dim)
-    
-#     def forward(self, s, g):
-#         x = F.relu(self.fc1(torch.cat([s, g], 1)))
-#         x = F.relu(self.fc2(x))
-#         x = F.relu(self.fc3(x))
-#         x = self.fc4(x)
-#         return x
-    
-# def convert_h5(torch_model):
-#     """convert model to h5"""
-#     torch_model.eval()
-#     dummy_state = torch.randn(1, torch_model.state_dim).to(device)
-#     dummy_goal = torch.randn(1, torch_model.goal_dim).to(device)
-#     torch.onnx.export(torch_model,               
-#         (dummy_state, dummy_goal),
-#         "forward_model.onnx",   
-#         export_params=True,        
-#         opset_version=10,          
-#         do_constant_folding=True,  
-#         input_names = ['state', 'goal'],   
-#         output_names = ['output']
-#         )
-#     onnx_model = onnx.load("forward_model.onnx")
-#     onnx.checker.check_model(onnx_model)
-#     k_model = onnx_to_keras(onnx_model, ['state', 'goal'])
-    # tf_rep = prepare(onnx_model)
-    # tf_rep.export_graph("forward_model.h5")
