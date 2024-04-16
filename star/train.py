@@ -958,6 +958,11 @@ def run_star(args):
         
     resolution = 50
     grid = np.zeros((resolution, resolution))
+    # Choose mode
+    if args.env_name in ["AntMaze", "AntPush", "AntFall", "AntMazeCam", "2Rooms", "3Rooms", "4Rooms", "PointMaze"]:
+        mode = "deterministic"
+    elif args.env_name in ["AntMazeStochastic"]:
+        mode = "stochastic"
 
     boss_policy = agents.Boss(
         G_init=G_init,
@@ -966,8 +971,9 @@ def run_star(args):
         policy=args.boss_policy,
         reachability_algorithm=args.reach_algo,
         goal_cond=goal_cond,
-        mem_capacity=args.boss_batch_size)
-    
+        mem_capacity=args.boss_batch_size,
+        mode=args.boss_mode)
+
     controller_policy = agents.Controller(
         state_dim=state_dim,
         goal_dim=controller_goal_dim,
