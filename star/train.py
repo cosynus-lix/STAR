@@ -28,11 +28,11 @@ def evaluate_policy(env, env_name, manager_policy, controller_policy,
                     manager_propose_frequency=10, eval_idx=0, eval_episodes=5):
     print("Starting evaluation number {}...".format(eval_idx))
     env.evaluate = True
-    video_dir = "Videos"
+    # video_dir = "Videos"
 
-    if not os.path.exists(video_dir):
-        os.makedirs(video_dir)
-    video_path = os.path.join(video_dir, f"video_{env_name}_hrac_{eval_idx}.mp4")
+    # if not os.path.exists(video_dir):
+    #     os.makedirs(video_dir)
+    # video_path = os.path.join(video_dir, f"video_{env_name}_hrac_{eval_idx}.mp4")
 
     with torch.no_grad():
         avg_reward = 0.
@@ -49,9 +49,9 @@ def evaluate_policy(env, env_name, manager_policy, controller_policy,
             step_count = 0
             env_goals_achieved = 0
 
-            video_writer = None
-            if eval_ep == 4:
-                video_writer = imageio.get_writer(video_path, fps=30)
+            # video_writer = None
+            # if eval_ep == 4:
+            #     video_writer = imageio.get_writer(video_path, fps=30)
 
             while not done:
                 if step_count % manager_propose_frequency == 0:
@@ -76,12 +76,12 @@ def evaluate_policy(env, env_name, manager_policy, controller_policy,
 
                 state = new_state
 
-                if video_writer is not None:
-                    data_rgb = env.render(mode='rgb_array', width=512, height=512, camera_name="top_down")
-                    video_writer.append_data(data_rgb)
+            #     if video_writer is not None:
+            #         data_rgb = env.render(mode='rgb_array', width=512, height=512, camera_name="top_down")
+            #         video_writer.append_data(data_rgb)
 
-            if video_writer is not None:
-                video_writer.close()
+            # if video_writer is not None:
+            #     video_writer.close()
 
         avg_reward /= eval_episodes
         avg_controller_rew /= global_steps
@@ -109,13 +109,13 @@ def evaluate_policy_star(env, env_name, goal_dim, grid, boss_policy, manager_pol
     g_low = [0, 0]
     g_high = [20, 20]
 
-    video_dir = "Videos"
-    if not os.path.exists(video_dir):
-        os.makedirs(video_dir)
+    # video_dir = "Videos"
+    # if not os.path.exists(video_dir):
+    #     os.makedirs(video_dir)
     
-    # Set the video path
-    video_path = os.path.join(video_dir, f"video_{env_name}_star_{eval_idx}.mp4")
-    video_writer = None
+    # # Set the video path
+    # video_path = os.path.join(video_dir, f"video_{env_name}_star_{eval_idx}.mp4")
+    # video_writer = None
 
     with torch.no_grad():
         avg_reward = 0.
@@ -140,8 +140,8 @@ def evaluate_policy_star(env, env_name, goal_dim, grid, boss_policy, manager_pol
             env_goals_achieved = 0
             
              # Initialize video writer only for the 4th episode
-            if eval_ep == 4:
-                video_writer = imageio.get_writer(video_path, fps=30)
+            # if eval_ep == 4:
+            #     video_writer = imageio.get_writer(video_path, fps=30)
 
             while not done:
                 if step_count % boss_propose_frequency == 0:
@@ -155,13 +155,6 @@ def evaluate_policy_star(env, env_name, goal_dim, grid, boss_policy, manager_pol
                     else:
                         target_partition_interval = boss_policy.G[target_partition_idx]
                     target_partition = np.array(target_partition_interval.inf + target_partition_interval.sup)
-
-                    # if start_partition_idx == 3:
-                    #     print("ant in part 3" + "targeting part" + str(target_partition_idx))
-                    # if start_partition_idx == 2:
-                    #     print("ant in part 2" + "targeting part" + str(target_partition_idx))
-                    # if start_partition_idx == 1:
-                    #     print("ant in part 1" + "targeting part" + str(target_partition_idx))
 
                 if step_count % manager_propose_frequency == 0:
                     # subgoal = manager_policy.sample_goal(state, np.concatenate((target_partition, goal)))
@@ -194,14 +187,14 @@ def evaluate_policy_star(env, env_name, goal_dim, grid, boss_policy, manager_pol
                 state = new_state
 
                 # Save frame to video only during the 4th episode
-                if video_writer is not None:
-                    data_rgb = env.render(mode='rgb_array', width=512, height=512, camera_name="top_down")
-                    video_writer.append_data(data_rgb)
+                # if video_writer is not None:
+                #     data_rgb = env.render(mode='rgb_array', width=512, height=512, camera_name="top_down")
+                #     video_writer.append_data(data_rgb)
 
             # Close video writer if it was used for the 4th episode
-            if video_writer is not None:
-                video_writer.close()
-                video_writer = None  # Reset for safety
+            # if video_writer is not None:
+            #     video_writer.close()
+            #     video_writer = None  # Reset for safety
 
         avg_reward /= eval_episodes
         avg_controller_rew /= global_steps
