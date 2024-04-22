@@ -5,8 +5,10 @@ import torch.nn.functional as F
 import tensorflow as tf
 from keras.layers import Input, Dense
 from keras.optimizers import Adam
+from keras.losses import BinaryCrossentropy
 
-from sklearn.metrics import mean_squared_error
+from sklearn.metrics import mean_squared_error, log_loss
+import numpy as np
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -59,7 +61,6 @@ class Actor(nn.Module):
             x = self.max_action * torch.sigmoid(self.l3(x))
         return x
 
-
 class Critic(nn.Module):
     def __init__(self, state_dim, goal_dim, action_dim):
         super().__init__()
@@ -100,7 +101,6 @@ class Critic(nn.Module):
         x1 = self.l3(x1)
         return x1
 
-
 class ControllerActor(nn.Module):
     def __init__(self, state_dim, goal_dim, action_dim, scale=1):
         super().__init__()
@@ -113,7 +113,6 @@ class ControllerActor(nn.Module):
     def forward(self, x, g):
         return self.scale*self.actor(x, g)
 
-
 class ControllerCritic(nn.Module):
     def __init__(self, state_dim, goal_dim, action_dim):
         super().__init__()
@@ -125,7 +124,6 @@ class ControllerCritic(nn.Module):
 
     def Q1(self, x, sg, u):
         return self.critic.Q1(x, sg, u)
-
 
 class ManagerActor(nn.Module):
     def __init__(self, state_dim, goal_dim, action_dim, scale=None, absolute_goal=False):
@@ -142,7 +140,6 @@ class ManagerActor(nn.Module):
         else:
             return self.scale * self.actor(x, g)
 
-
 class ManagerCritic(nn.Module):
     def __init__(self, state_dim, goal_dim, action_dim):
         super().__init__()
@@ -153,7 +150,6 @@ class ManagerCritic(nn.Module):
 
     def Q1(self, x, g, u):
         return self.critic.Q1(x, g, u)
-
 
 class ANet(nn.Module):
 
@@ -170,13 +166,18 @@ class ANet(nn.Module):
         x = F.relu(self.fc3(x))
         x = self.fc4(x)
         return x
-
-    
+  
 class ForwardModel():
 
     def __init__(self, state_dim, goal_dim, hidden_dim, learning_rate):
         self.goal_dim = goal_dim
-        self.state_dim = goal_dim // 2
+        if state_dim:
+            self.state_dim = len(state_dim)
+            self.features = state_dim
+        else:
+            self.state_dim = goal_dim // 2
+            self.features = list(range(self.state_dim))
+        
         self.model = tf.keras.Sequential([
             Input((self.state_dim + self.goal_dim,)),
             Dense(hidden_dim, activation='relu'),
@@ -186,17 +187,64 @@ class ForwardModel():
         self.model.compile(loss='mse', optimizer=Adam(learning_rate))
     
     def fit(self, states, goals, reached_states, n_epochs=100, verbose=False):
-        input = tf.concat((states[:, :self.state_dim], goals), axis=1)
-        self.model.fit(input, reached_states[:, :self.state_dim], epochs=n_epochs, verbose=verbose)
+        input = tf.concat((states[:, self.features], goals), axis=1)
+        self.model.fit(input, reached_states[:, self.features], epochs=n_epochs, verbose=verbose)
     
     def predict(self, states, goals, verbose=False):
-        input = tf.concat((states[:, :self.state_dim], goals), axis=1)
+        input = tf.concat((states[:, self.features], goals), axis=1)
         return self.model.predict(input, verbose=verbose)
     
     def measure_error(self, partition_buffer, batch_size, Gs = None, Gt=None):
         # x, gs, y, gt, rl, rh = partition_buffer.sample(batch_size)
         x, gs, y, gt, rl, rh = partition_buffer.target_sample(Gs, Gt, batch_size)
-        loss = mean_squared_error(y[:, :self.state_dim], self.predict(x, gt))
+        loss = mean_squared_error(y[:, self.features], self.predict(x, gt))
+        return loss
+    
+    def load(self, dir, env_name, algo):
+        self.model = tf.keras.models.load_model("{}/{}_{}_BossForwardModel".format(dir, env_name, algo))
+
+    def save(self, dir, env_name=None, algo=None):
+        if env_name == None and algo == None:
+            self.model.save(dir)
+        else:
+            self.model.save("{}/{}_{}_BossForwardModel".format(dir, env_name, algo))
+
+class StochasticForwardModel():
+
+    def __init__(self, state_dim, goal_dim, hidden_dim, learning_rate):
+        self.goal_dim = goal_dim
+        if state_dim:
+            self.state_dim = len(state_dim)
+            self.features = state_dim
+        else:
+            self.state_dim = goal_dim // 2
+            self.features = list(range(self.state_dim))
+
+        self.model = tf.keras.Sequential([
+            Input((self.state_dim + self.goal_dim,)),
+            Dense(hidden_dim, activation='relu'),
+            Dense(hidden_dim, activation='relu'),
+            Dense(1, activation='sigmoid')
+        ])
+        self.model.compile(loss=BinaryCrossentropy(), optimizer=Adam(learning_rate))
+    
+    def fit(self, states, goals, reached_states, n_epochs=100, verbose=False):
+        input = tf.concat((states[:, self.features], goals), axis=1)
+        reach1 = np.all(goals[:, :self.goal_dim//2] <= reached_states[:, self.features] , axis=1)
+        reach2 = np.all(reached_states[:, self.features] <= goals[:, self.goal_dim//2:] , axis=1)
+        reach = 1 * np.logical_and(reach1, reach2)
+        self.model.fit(input, reach, epochs=n_epochs, verbose=verbose)
+    
+    def predict(self, states, goals, verbose=False):
+        input = tf.concat((states[:, self.features], goals), axis=1)
+        return self.model.predict(input, verbose=verbose)
+    
+    def measure_error(self, partition_buffer, batch_size, Gs = None, Gt=None):
+        x, gs, y, gt, rl, rh = partition_buffer.target_sample(Gs, Gt, batch_size)
+        reach1 = np.all(gt[:, :self.goal_dim//2] <= y[:, self.features] , axis=1)
+        reach2 = np.all(y[:, self.features] <= gt[:, self.goal_dim//2:] , axis=1)
+        reach = 1 * np.logical_and(reach1, reach2)
+        loss = log_loss(reach, self.predict(x, gt))
         return loss
 
     
@@ -208,41 +256,3 @@ class ForwardModel():
             self.model.save(dir)
         else:
             self.model.save("{}/{}_{}_BossForwardModel".format(dir, env_name, algo))
-
-# class ForwardModel(nn.Module):
-
-#     def __init__(self, state_dim, goal_dim, hidden_dim):
-#         super().__init__()
-#         self.state_dim = state_dim
-#         self.goal_dim = goal_dim
-#         self.fc1 = nn.Linear(state_dim + goal_dim, hidden_dim)
-#         self.fc2 = nn.Linear(hidden_dim, hidden_dim)
-#         self.fc3 = nn.Linear(hidden_dim, hidden_dim)
-#         self.fc4 = nn.Linear(hidden_dim, state_dim)
-    
-#     def forward(self, s, g):
-#         x = F.relu(self.fc1(torch.cat([s, g], 1)))
-#         x = F.relu(self.fc2(x))
-#         x = F.relu(self.fc3(x))
-#         x = self.fc4(x)
-#         return x
-    
-# def convert_h5(torch_model):
-#     """convert model to h5"""
-#     torch_model.eval()
-#     dummy_state = torch.randn(1, torch_model.state_dim).to(device)
-#     dummy_goal = torch.randn(1, torch_model.goal_dim).to(device)
-#     torch.onnx.export(torch_model,               
-#         (dummy_state, dummy_goal),
-#         "forward_model.onnx",   
-#         export_params=True,        
-#         opset_version=10,          
-#         do_constant_folding=True,  
-#         input_names = ['state', 'goal'],   
-#         output_names = ['output']
-#         )
-#     onnx_model = onnx.load("forward_model.onnx")
-#     onnx.checker.check_model(onnx_model)
-#     k_model = onnx_to_keras(onnx_model, ['state', 'goal'])
-    # tf_rep = prepare(onnx_model)
-    # tf_rep.export_graph("forward_model.h5")

@@ -12,7 +12,7 @@ from collections import defaultdict
 
 import star.utils as utils
 import star.agents as agents
-from star.models import ANet, ForwardModel
+from star.models import ANet, ForwardModel, StochasticForwardModel
 from envs import EnvWithGoal, GatherEnv
 from envs.create_maze_env import create_maze_env
 from envs.create_gather_env import create_gather_env
@@ -992,6 +992,11 @@ def run_star(args):
         
     resolution = 50
     grid = np.zeros((resolution, resolution))
+    # Choose mode
+    if args.env_name in ["AntMaze", "AntPush", "AntFall", "AntMazeCam", "2Rooms", "3Rooms", "4Rooms", "PointMaze"]:
+        mode = "deterministic"
+    elif args.env_name in ["AntMazeStochastic"]:
+        mode = "stochastic"
 
     boss_policy = agents.Boss(
         G_init=G_init,
@@ -1000,8 +1005,9 @@ def run_star(args):
         policy=args.boss_policy,
         reachability_algorithm=args.reach_algo,
         goal_cond=goal_cond,
-        mem_capacity=args.boss_batch_size)
-    
+        mem_capacity=args.boss_batch_size,
+        mode=mode)
+
     controller_policy = agents.Controller(
         state_dim=state_dim,
         goal_dim=controller_goal_dim,
@@ -1049,7 +1055,13 @@ def run_star(args):
     controller_buffer = utils.ReplayBuffer(maxsize=args.ctrl_buffer_size)
 
     # Initialize forward model
-    fwd_model = ForwardModel(state_dim, 2*goal_dim, args.fwd_hidden_dim, args.lr_fwd)
+    if args.env_name in ["AntMaze", "AntPush", "AntFall", "AntMazeCam", "2Rooms", "3Rooms", "4Rooms", "PointMaze"]:
+        fwd_model = ForwardModel(state_dims, 2*goal_dim, args.fwd_hidden_dim, args.lr_fwd)
+    elif args.env_name in ["AntMazeStochastic"]:
+        fwd_model = StochasticForwardModel(state_dims, 2*goal_dim, args.fwd_hidden_dim, args.lr_fwd)
+    else:
+        raise NotImplementedError
+    
     if args.load_fwd_model:
         fwd_model.load("./models", args.loaded_env_name, args.algo)
         print("Loaded Forward Model")
@@ -1094,9 +1106,9 @@ def run_star(args):
                 # Train controller
                 ctrl_act_loss, ctrl_crit_loss = controller_policy.train(controller_buffer, episode_timesteps,
                     batch_size=args.ctrl_batch_size, discount=args.ctrl_discount, tau=args.ctrl_soft_sync_rate)
-                if episode_num % 10 == 0:
-                    print("Controller actor loss: {:.3f}".format(ctrl_act_loss))
-                    print("Controller critic loss: {:.3f}".format(ctrl_crit_loss))
+                # if episode_num % 10 == 0:
+                #     print("Controller actor loss: {:.3f}".format(ctrl_act_loss))
+                #     print("Controller critic loss: {:.3f}".format(ctrl_crit_loss))
                 writer.add_scalar("data/controller_actor_loss", ctrl_act_loss, total_timesteps)
                 writer.add_scalar("data/controller_critic_loss", ctrl_crit_loss, total_timesteps)
 
@@ -1117,10 +1129,10 @@ def run_star(args):
                     writer.add_scalar("data/manager_critic_loss", man_crit_loss, total_timesteps)
                     writer.add_scalar("data/manager_goal_loss", man_goal_loss, total_timesteps)
 
-                    if episode_num % 10 == 0:
-                        print("Manager actor loss: {:.3f}".format(man_act_loss))
-                        print("Manager critic loss: {:.3f}".format(man_crit_loss))
-                        print("Manager goal loss: {:.3f}".format(man_goal_loss))
+                    # if episode_num % 10 == 0:
+                    #     print("Manager actor loss: {:.3f}".format(man_act_loss))
+                    #     print("Manager critic loss: {:.3f}".format(man_crit_loss))
+                    #     print("Manager goal loss: {:.3f}".format(man_goal_loss))
                 
                 # Train Boss
                 if timesteps_since_boss >= args.train_boss_freq:
@@ -1151,9 +1163,14 @@ def run_star(args):
                     writer.add_scalar("data/Boss_nbr_part", len(boss_policy.G), total_timesteps)
                     writer.add_scalar("data/Boss_eps", epsilon, total_timesteps)
 
-                    if episode_num % 10 == 0:
-                        print("Boss partitions number : {:.3f}".format(len(boss_policy.G)))
-                        print("Boss epsilon: {:.3f}".format(epsilon))
+                if episode_num % 10 == 0:
+                    print("Controller actor loss: {:.3f}".format(ctrl_act_loss))
+                    print("Controller critic loss: {:.3f}".format(ctrl_crit_loss))
+                    print("Manager actor loss: {:.3f}".format(man_act_loss))
+                    print("Manager critic loss: {:.3f}".format(man_crit_loss))
+                    print("Manager goal loss: {:.3f}".format(man_goal_loss))
+                    print("Boss partitions number : {:.3f}".format(len(boss_policy.G)))
+                    print("Boss epsilon: {:.3f}".format(epsilon))
 
                 # Evaluate
                 if timesteps_since_eval >= args.eval_freq:
