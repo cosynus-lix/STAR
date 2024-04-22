@@ -224,13 +224,16 @@ class StochasticForwardModel():
             Input((self.state_dim + self.goal_dim,)),
             Dense(hidden_dim, activation='relu'),
             Dense(hidden_dim, activation='relu'),
-            Dense(1)
+            Dense(1, activation='sigmoid')
         ])
         self.model.compile(loss=BinaryCrossentropy(), optimizer=Adam(learning_rate))
     
     def fit(self, states, goals, reached_states, n_epochs=100, verbose=False):
         input = tf.concat((states[:, self.features], goals), axis=1)
-        self.model.fit(input, reached_states[:, self.features], epochs=n_epochs, verbose=verbose)
+        reach1 = np.all(goals[:, :self.goal_dim//2] <= reached_states[:, self.features] , axis=1)
+        reach2 = np.all(reached_states[:, self.features] <= goals[:, self.goal_dim//2:] , axis=1)
+        reach = 1 * np.logical_and(reach1, reach2)
+        self.model.fit(input, reach, epochs=n_epochs, verbose=verbose)
     
     def predict(self, states, goals, verbose=False):
         input = tf.concat((states[:, self.features], goals), axis=1)
@@ -240,7 +243,7 @@ class StochasticForwardModel():
         x, gs, y, gt, rl, rh = partition_buffer.target_sample(Gs, Gt, batch_size)
         reach1 = np.all(gt[:, :self.goal_dim//2] <= y[:, self.features] , axis=1)
         reach2 = np.all(y[:, self.features] <= gt[:, self.goal_dim//2:] , axis=1)
-        reach = np.logical_and(reach1, reach2)
+        reach = 1 * np.logical_and(reach1, reach2)
         loss = log_loss(reach, self.predict(x, gt))
         return loss
 
