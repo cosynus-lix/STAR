@@ -430,7 +430,7 @@ class Boss(object):
                 self.split(forward_model, start_partition=goal_pair[0], target_partition=goal_pair[1], replay_buffer=replay_buffer, tau1=tau1, tau2=tau2)
 
     
-    def save(self, dir, env_name, time, algo='STAR'):
+    def save(self, dir, env_name, time, algo='star'):
         """
         Save the partitions, the Q table and transition graph
         """
