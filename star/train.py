@@ -863,6 +863,7 @@ def run_hrac(args):
 
 def run_star(args):
     start_algo = time.time()
+    end_algo = 0
     if not os.path.exists("./results"):
         os.makedirs("./results")
     if args.save_models and not os.path.exists("./models"):
@@ -1070,8 +1071,8 @@ def run_star(args):
     if args.load:
         try:
             boss_policy.load("./models", args.loaded_env_name, args.algo)
-            manager_policy.load("./models", args.loaded_env_name, args.algo)
-            controller_policy.load("./models", args.loaded_env_name, args.algo)
+            # manager_policy.load("./models", args.loaded_env_name, args.algo)
+            # controller_policy.load("./models", args.loaded_env_name, args.algo)
             print("Loaded successfully.")
             just_loaded = True
         except Exception as e:
