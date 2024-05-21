@@ -451,7 +451,7 @@ def update_amat_and_train_anet(n_states, adj_mat, state_list, state_dict, a_net,
         if args.save_models:
             r_filename = os.path.join("./models", "{}_{}_a_network.pth".format(args.env_name, args.algo))
             torch.save(a_net.state_dict(), r_filename)
-            print("----- Adjacency network {} saved. -----".format(episode_num))
+            # print("----- Adjacency network {} saved. -----".format(episode_num))
 
     traj_buffer.reset()
 
@@ -472,6 +472,7 @@ def handcrafted_planning(goal, goal_partition_idx, start_partition_idx, boss_pol
 
 def run_hrac(args):
     start_algo = time.time()
+    end_algo = 0
     if not os.path.exists("./results"):
         os.makedirs("./results")
     if not os.path.exists("./time"):
@@ -644,6 +645,7 @@ def run_hrac(args):
     evaluations = []
     compute_time = {'reach_time':[], 'algo_time':[], 'percentage':[]}
     duration = 0
+    duration_eval = 0
 
     # Train
     while total_timesteps < args.max_timesteps:
@@ -714,9 +716,8 @@ def run_hrac(args):
                     start = time.time()
                     n_states = update_amat_and_train_anet(n_states, adj_mat, state_list, state_dict, a_net, traj_buffer,
                         optimizer_r, controller_goal_dim, device, args, state_dims)
-                    end = time.time()
-                    end_algo = end
-                    duration += end - start
+                    end_algo = time.time()
+                    duration += end_algo - start_algo
                     duration_algo = (end_algo - start_algo) - duration_eval
                     compute_time['reach_time'].append(duration)
                     compute_time['algo_time'].append(duration_algo)
@@ -844,8 +845,7 @@ def run_hrac(args):
 
     writer.close()
 
-    end_algo = end
-    duration += end - start
+    duration += end_algo - start_algo
     duration_algo = (end_algo - start_algo) - duration_eval
     compute_time['reach_time'].append(duration)
     compute_time['algo_time'].append(duration_algo)
