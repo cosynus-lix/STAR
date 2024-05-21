@@ -1096,7 +1096,8 @@ def run_star(args):
     compute_time = {'reach_time':[], 'algo_time':[], 'percentage':[]}
     duration = 0
     evaluations = []
-
+    manager_ep_rew = 0
+    
     # Train
     while total_timesteps < args.max_timesteps:
         if done:
@@ -1113,7 +1114,8 @@ def run_star(args):
                 writer.add_scalar("data/controller_critic_loss", ctrl_crit_loss, total_timesteps)
 
                 writer.add_scalar("data/controller_ep_rew", episode_reward, total_timesteps)
-                writer.add_scalar("data/manager_ep_rew", manager_transition[4], total_timesteps)
+                writer.add_scalar("data/manager_ep_rew", manager_ep_rew, total_timesteps)
+                manager_ep_rew = 0
 
                 # Train manager
                 if timesteps_since_manager >= args.train_manager_freq:
@@ -1373,6 +1375,7 @@ def run_star(args):
                 subgoal = man_noise.perturb_action(subgoal,
                     min_action=np.zeros(controller_goal_dim), max_action=2*man_scale[:controller_goal_dim])
 
+            manager_ep_rew = manager_transition[4]
             timesteps_since_subgoal = 0
             manager_transition = [state, None, target_partition, subgoal, 0, False, [state], []]
 
