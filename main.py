@@ -124,16 +124,16 @@ if __name__ == "__main__":
     if args.mode == 'transfer':
         for exp in range(5):
             # Train on Point Maze
-            # args.max_timesteps = 1.5e6
-            # args.env_name = "PointMaze"
-            # args.exp = 'vanilla' + str(exp)
-            # run_star(args)
+            args.max_timesteps = 1.5e6
+            args.env_name = "PointMaze"
+            args.exp = 'vanilla' + str(exp)
+            run(args)
         
             # Train on Ant Maze
             args.max_timesteps = 5e6
             args.env_name = "AntMaze"
+            args.load_adj_net = True
             args.exp = 'transfer' + str(exp)
-            args.load = True
             args.loaded_env_name = "PointMaze"
             args.load_fwd_model = False
             run(args)
