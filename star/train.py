@@ -618,7 +618,7 @@ def run_hrac(args):
     a_net = ANet(controller_goal_dim, args.r_hidden_dim, args.r_embedding_dim)
     if args.load_adj_net:
         print("Loading adjacency network...")
-        a_net.load_state_dict(torch.load("./models/a_network.pth"))
+        a_net.load_state_dict(torch.load("./models/"+ args.loaded_env_name + "_" + args.algo + "_a_network.pth"))
     a_net.to(device)
     optimizer_r = optim.Adam(a_net.parameters(), lr=args.lr_r)
 
