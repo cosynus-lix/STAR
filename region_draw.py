@@ -8,7 +8,7 @@ import csv
 title_fontsize = 15
 legend_fontsize = 12
 
-dir = '/results/partitions/'
+dir = './results/partitions/'
 
 def transform(regions):
     trans = []
@@ -229,7 +229,7 @@ def read_partitions():
     experiments = ['AntMaze', 'AntFall']
     for i in range(3):
         for e in experiments:
-            file = dir + e + str(i) + "_BossPartitions.pth"
+            file = f"{dir}{e}_{i}_BossPartitions.pth"
             v = []
             r = []
             with open(file) as csv_file:
@@ -237,7 +237,7 @@ def read_partitions():
                 line_count = 0
                 for row in csv_reader:
                     if line_count == 0:
-                        v = [int(rec) for rec in row]
+                        v = [float(rec) for rec in row]
                         line_count += 1
                     else:
                         r.append([float(rec) for rec in row])

@@ -210,7 +210,8 @@ def evaluate_policy_star(env, env_name, goal_dim, grid, boss_policy, manager_pol
 
         avg_visits /= eval_episodes
 
-        if eval_idx in [200, 400, 600]:
+        # if eval_idx in [200, 400, 600]:
+        if eval_idx % 10 == 0:
             with open("{}/{}_{}_BossPartitions.pth".format('./results/partitions', env_name, eval_idx // 200), 'w', encoding='UTF8') as f:
             # create the csv writer
                 writer = csv.writer(f)
