@@ -229,7 +229,7 @@ def read_partitions():
     experiments = ['AntMaze', 'AntFall']
     for i in range(3):
         for e in experiments:
-            file = dir + e + "_partitions_" + str(i) + ".csv"
+            file = dir + e + str(i) + "_BossPartitions.pth"
             v = []
             r = []
             with open(file) as csv_file:

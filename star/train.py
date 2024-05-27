@@ -17,6 +17,7 @@ from envs import EnvWithGoal, GatherEnv
 from envs.create_maze_env import create_maze_env
 from envs.create_gather_env import create_gather_env
 import imageio
+import csv 
 
 """
 HIRO part adapted from
@@ -102,13 +103,18 @@ def evaluate_policy(env, env_name, manager_policy, controller_policy,
 
 def evaluate_policy_star(env, env_name, goal_dim, grid, boss_policy, manager_policy, controller_policy,
                     calculate_controller_reward, ctrl_rew_scale, boss_propose_frequency=30,
-                    manager_propose_frequency=10, eval_idx=0, eval_episodes=5):
+                    manager_propose_frequency=10, eval_idx=0, eval_episodes=5, save_goals=False):
     print("Starting evaluation number {}...".format(eval_idx))
     env.evaluate = True
+    avg_visits = np.zeros(len(boss_policy.G))
     resolution = 50
     g_low = [0, 0]
     g_high = [20, 20]
 
+    if not os.path.exists("./results/partitions"):
+        os.makedirs("./results/partitions")
+    
+    
     # video_dir = "Videos"
     # if not os.path.exists(video_dir):
     #     os.makedirs(video_dir)
@@ -123,6 +129,7 @@ def evaluate_policy_star(env, env_name, goal_dim, grid, boss_policy, manager_pol
         global_steps = 0
         goals_achieved = 0
         for eval_ep in range(eval_episodes):
+            visits = np.zeros((len(boss_policy.G)))
             obs = env.reset()
             goal = obs["desired_goal"]
             if goal is not None:
@@ -134,6 +141,7 @@ def evaluate_policy_star(env, env_name, goal_dim, grid, boss_policy, manager_pol
             new_state = state
             start_state = state
             start_partition_idx = boss_policy.identify_partition(state)
+            visits[start_partition_idx] += 1
             start_partition = np.array(boss_policy.G[start_partition_idx].inf + boss_policy.G[start_partition_idx].sup)
             done = False
             step_count = 0
@@ -147,6 +155,7 @@ def evaluate_policy_star(env, env_name, goal_dim, grid, boss_policy, manager_pol
                 if step_count % boss_propose_frequency == 0:
                     start_partition_idx = boss_policy.identify_partition(state)
                     start_partition = np.array(boss_policy.G[start_partition_idx].inf + boss_policy.G[start_partition_idx].sup)
+                    visits[start_partition_idx] += 1
                     target_partition_idx = boss_policy.select_partition(start_partition_idx, epsilon=0, goal=goal)
                     if target_partition_idx == goal_partition and goal_dim == goal.shape[0]:
                         target_partition_interval = utils.ndInterval(goal_dim, inf=[goal[i]-1 for i in range(goal_dim)], sup=[goal[i]+1 for i in range(goal_dim)])
@@ -195,6 +204,21 @@ def evaluate_policy_star(env, env_name, goal_dim, grid, boss_policy, manager_pol
             # if video_writer is not None:
             #     video_writer.close()
             #     video_writer = None  # Reset for safety
+            final_partition_idx = boss_policy.identify_partition(state)
+            visits[final_partition_idx] += 1
+            avg_visits += visits
+
+        avg_visits /= eval_episodes
+
+        if eval_idx in [200, 400, 600]:
+            with open("{}/{}_{}_BossPartitions.pth".format('./results/partitions', env_name, eval_idx // 200), 'w', encoding='UTF8') as f:
+            # create the csv writer
+                writer = csv.writer(f)
+                writer.writerow(avg_visits)
+                for i in range(len(boss_policy.G)):
+                    # write a row to the csv file
+                    writer.writerow(boss_policy.G[i].inf + boss_policy.G[i].sup)
+            f.close()
 
         avg_reward /= eval_episodes
         avg_controller_rew /= global_steps
