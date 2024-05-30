@@ -103,7 +103,7 @@ def evaluate_policy(env, env_name, manager_policy, controller_policy,
 
 def evaluate_policy_star(env, env_name, goal_dim, grid, boss_policy, manager_policy, controller_policy,
                     calculate_controller_reward, ctrl_rew_scale, boss_propose_frequency=30,
-                    manager_propose_frequency=10, eval_idx=0, eval_episodes=5, save_goals=False):
+                    manager_propose_frequency=10, eval_idx=0, eval_episodes=5, total_timesteps = 0, save_goals=False):
     print("Starting evaluation number {}...".format(eval_idx))
     env.evaluate = True
     avg_visits = np.zeros(len(boss_policy.G))
@@ -212,9 +212,10 @@ def evaluate_policy_star(env, env_name, goal_dim, grid, boss_policy, manager_pol
 
         # if eval_idx in [200, 400, 600]:
         if eval_idx % 10 == 0:
-            with open("{}/{}_{}_BossPartitions.pth".format('./results/partitions', env_name, eval_idx // 200), 'w', encoding='UTF8') as f:
+            with open("{}/{}_{}_BossPartitions.pth".format('./results/partitions', env_name, total_timesteps), 'w', encoding='UTF8') as f:
             # create the csv writer
                 writer = csv.writer(f)
+                writer.writerow([total_timesteps, eval_idx])
                 writer.writerow(avg_visits)
                 for i in range(len(boss_policy.G)):
                     # write a row to the csv file
@@ -1204,7 +1205,7 @@ def run_star(args):
                     start_eval = time.time()
                     avg_ep_rew, avg_controller_rew, avg_steps, avg_env_finish, grid = evaluate_policy_star(env, args.env_name, goal_dim, grid, boss_policy, manager_policy, controller_policy,
                             calculate_controller_reward, args.ctrl_rew_scale, args.boss_propose_freq, args.manager_propose_freq,
-                            len(evaluations))
+                            eval_idx = len(evaluations), total_timesteps = total_timesteps)
                     end_eval = time.time()
                     duration_eval = end_eval - start_eval
 
@@ -1406,7 +1407,7 @@ def run_star(args):
     start_eval = time.time()
     avg_ep_rew, avg_controller_rew, avg_steps, avg_env_finish, grid = evaluate_policy_star(
         env, args.env_name, goal_dim, grid, boss_policy, manager_policy, controller_policy, calculate_controller_reward,
-        args.ctrl_rew_scale, args.boss_propose_freq, args.manager_propose_freq, len(evaluations))
+        args.ctrl_rew_scale, args.boss_propose_freq, args.manager_propose_freq, eval_idx = len(evaluations), total_timesteps = total_timesteps)
     end_eval = time.time()
     duration_eval = end_eval - start_eval
 
