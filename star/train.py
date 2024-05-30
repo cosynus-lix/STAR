@@ -17,6 +17,7 @@ from envs import EnvWithGoal, GatherEnv
 from envs.create_maze_env import create_maze_env
 from envs.create_gather_env import create_gather_env
 import imageio
+import csv 
 
 """
 HIRO part adapted from
@@ -102,13 +103,18 @@ def evaluate_policy(env, env_name, manager_policy, controller_policy,
 
 def evaluate_policy_star(env, env_name, goal_dim, grid, boss_policy, manager_policy, controller_policy,
                     calculate_controller_reward, ctrl_rew_scale, boss_propose_frequency=30,
-                    manager_propose_frequency=10, eval_idx=0, eval_episodes=5):
+                    manager_propose_frequency=10, eval_idx=0, eval_episodes=5, total_timesteps = 0, save_goals=False):
     print("Starting evaluation number {}...".format(eval_idx))
     env.evaluate = True
+    avg_visits = np.zeros(len(boss_policy.G))
     resolution = 50
     g_low = [0, 0]
     g_high = [20, 20]
 
+    if not os.path.exists("./results/partitions"):
+        os.makedirs("./results/partitions")
+    
+    
     # video_dir = "Videos"
     # if not os.path.exists(video_dir):
     #     os.makedirs(video_dir)
@@ -123,6 +129,7 @@ def evaluate_policy_star(env, env_name, goal_dim, grid, boss_policy, manager_pol
         global_steps = 0
         goals_achieved = 0
         for eval_ep in range(eval_episodes):
+            visits = np.zeros((len(boss_policy.G)))
             obs = env.reset()
             goal = obs["desired_goal"]
             if goal is not None:
@@ -134,6 +141,7 @@ def evaluate_policy_star(env, env_name, goal_dim, grid, boss_policy, manager_pol
             new_state = state
             start_state = state
             start_partition_idx = boss_policy.identify_partition(state)
+            visits[start_partition_idx] += 1
             start_partition = np.array(boss_policy.G[start_partition_idx].inf + boss_policy.G[start_partition_idx].sup)
             done = False
             step_count = 0
@@ -147,6 +155,7 @@ def evaluate_policy_star(env, env_name, goal_dim, grid, boss_policy, manager_pol
                 if step_count % boss_propose_frequency == 0:
                     start_partition_idx = boss_policy.identify_partition(state)
                     start_partition = np.array(boss_policy.G[start_partition_idx].inf + boss_policy.G[start_partition_idx].sup)
+                    visits[start_partition_idx] += 1
                     target_partition_idx = boss_policy.select_partition(start_partition_idx, epsilon=0, goal=goal)
                     if target_partition_idx == goal_partition and goal_dim == goal.shape[0]:
                         target_partition_interval = utils.ndInterval(goal_dim, inf=[goal[i]-1 for i in range(goal_dim)], sup=[goal[i]+1 for i in range(goal_dim)])
@@ -195,6 +204,23 @@ def evaluate_policy_star(env, env_name, goal_dim, grid, boss_policy, manager_pol
             # if video_writer is not None:
             #     video_writer.close()
             #     video_writer = None  # Reset for safety
+            final_partition_idx = boss_policy.identify_partition(state)
+            visits[final_partition_idx] += 1
+            avg_visits += visits
+
+        avg_visits /= eval_episodes
+
+        # if eval_idx in [200, 400, 600]:
+        if eval_idx % 10 == 0:
+            with open("{}/{}_{}_BossPartitions.pth".format('./results/partitions', env_name, total_timesteps), 'w', encoding='UTF8') as f:
+            # create the csv writer
+                writer = csv.writer(f)
+                writer.writerow([total_timesteps, eval_idx])
+                writer.writerow(avg_visits)
+                for i in range(len(boss_policy.G)):
+                    # write a row to the csv file
+                    writer.writerow(boss_policy.G[i].inf + boss_policy.G[i].sup)
+            f.close()
 
         avg_reward /= eval_episodes
         avg_controller_rew /= global_steps
@@ -451,7 +477,7 @@ def update_amat_and_train_anet(n_states, adj_mat, state_list, state_dict, a_net,
         if args.save_models:
             r_filename = os.path.join("./models", "{}_{}_a_network.pth".format(args.env_name, args.algo))
             torch.save(a_net.state_dict(), r_filename)
-            print("----- Adjacency network {} saved. -----".format(episode_num))
+            # print("----- Adjacency network {} saved. -----".format(episode_num))
 
     traj_buffer.reset()
 
@@ -472,6 +498,7 @@ def handcrafted_planning(goal, goal_partition_idx, start_partition_idx, boss_pol
 
 def run_hrac(args):
     start_algo = time.time()
+    end_algo = 0
     if not os.path.exists("./results"):
         os.makedirs("./results")
     if not os.path.exists("./time"):
@@ -617,7 +644,7 @@ def run_hrac(args):
     a_net = ANet(controller_goal_dim, args.r_hidden_dim, args.r_embedding_dim)
     if args.load_adj_net:
         print("Loading adjacency network...")
-        a_net.load_state_dict(torch.load("./models/a_network.pth"))
+        a_net.load_state_dict(torch.load("./models/"+ args.loaded_env_name + "_" + args.algo + "_a_network.pth"))
     a_net.to(device)
     optimizer_r = optim.Adam(a_net.parameters(), lr=args.lr_r)
 
@@ -644,6 +671,7 @@ def run_hrac(args):
     evaluations = []
     compute_time = {'reach_time':[], 'algo_time':[], 'percentage':[]}
     duration = 0
+    duration_eval = 0
 
     # Train
     while total_timesteps < args.max_timesteps:
@@ -714,9 +742,8 @@ def run_hrac(args):
                     start = time.time()
                     n_states = update_amat_and_train_anet(n_states, adj_mat, state_list, state_dict, a_net, traj_buffer,
                         optimizer_r, controller_goal_dim, device, args, state_dims)
-                    end = time.time()
-                    end_algo = end
-                    duration += end - start
+                    end_algo = time.time()
+                    duration += end_algo - start_algo
                     duration_algo = (end_algo - start_algo) - duration_eval
                     compute_time['reach_time'].append(duration)
                     compute_time['algo_time'].append(duration_algo)
@@ -844,8 +871,7 @@ def run_hrac(args):
 
     writer.close()
 
-    end_algo = end
-    duration += end - start
+    duration += end_algo - start_algo
     duration_algo = (end_algo - start_algo) - duration_eval
     compute_time['reach_time'].append(duration)
     compute_time['algo_time'].append(duration_algo)
@@ -863,6 +889,7 @@ def run_hrac(args):
 
 def run_star(args):
     start_algo = time.time()
+    end_algo = 0
     if not os.path.exists("./results"):
         os.makedirs("./results")
     if args.save_models and not os.path.exists("./models"):
@@ -1070,8 +1097,8 @@ def run_star(args):
     if args.load:
         try:
             boss_policy.load("./models", args.loaded_env_name, args.algo)
-            manager_policy.load("./models", args.loaded_env_name, args.algo)
-            controller_policy.load("./models", args.loaded_env_name, args.algo)
+            # manager_policy.load("./models", args.loaded_env_name, args.algo)
+            # controller_policy.load("./models", args.loaded_env_name, args.algo)
             print("Loaded successfully.")
             just_loaded = True
         except Exception as e:
@@ -1096,7 +1123,8 @@ def run_star(args):
     compute_time = {'reach_time':[], 'algo_time':[], 'percentage':[]}
     duration = 0
     evaluations = []
-
+    manager_ep_rew = 0
+    
     # Train
     while total_timesteps < args.max_timesteps:
         if done:
@@ -1113,7 +1141,8 @@ def run_star(args):
                 writer.add_scalar("data/controller_critic_loss", ctrl_crit_loss, total_timesteps)
 
                 writer.add_scalar("data/controller_ep_rew", episode_reward, total_timesteps)
-                writer.add_scalar("data/manager_ep_rew", manager_transition[4], total_timesteps)
+                writer.add_scalar("data/manager_ep_rew", manager_ep_rew, total_timesteps)
+                manager_ep_rew = 0
 
                 # Train manager
                 if timesteps_since_manager >= args.train_manager_freq:
@@ -1178,7 +1207,7 @@ def run_star(args):
                     start_eval = time.time()
                     avg_ep_rew, avg_controller_rew, avg_steps, avg_env_finish, grid = evaluate_policy_star(env, args.env_name, goal_dim, grid, boss_policy, manager_policy, controller_policy,
                             calculate_controller_reward, args.ctrl_rew_scale, args.boss_propose_freq, args.manager_propose_freq,
-                            len(evaluations))
+                            eval_idx = len(evaluations), total_timesteps = total_timesteps)
                     end_eval = time.time()
                     duration_eval = end_eval - start_eval
 
@@ -1373,6 +1402,7 @@ def run_star(args):
                 subgoal = man_noise.perturb_action(subgoal,
                     min_action=np.zeros(controller_goal_dim), max_action=2*man_scale[:controller_goal_dim])
 
+            manager_ep_rew = manager_transition[4]
             timesteps_since_subgoal = 0
             manager_transition = [state, None, target_partition, subgoal, 0, False, [state], []]
 
@@ -1380,7 +1410,7 @@ def run_star(args):
     start_eval = time.time()
     avg_ep_rew, avg_controller_rew, avg_steps, avg_env_finish, grid = evaluate_policy_star(
         env, args.env_name, goal_dim, grid, boss_policy, manager_policy, controller_policy, calculate_controller_reward,
-        args.ctrl_rew_scale, args.boss_propose_freq, args.manager_propose_freq, len(evaluations))
+        args.ctrl_rew_scale, args.boss_propose_freq, args.manager_propose_freq, eval_idx = len(evaluations), total_timesteps = total_timesteps)
     end_eval = time.time()
     duration_eval = end_eval - start_eval
 
